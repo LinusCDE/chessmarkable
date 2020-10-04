@@ -125,6 +125,7 @@ pub struct GameScene {
     full_refresh_button_hitbox: Option<mxcfb_rect>,
     square_size: u32,
     piece_padding: u32,
+    overlay_padding: u32,
     piece_hitboxes: Vec<Vec<mxcfb_rect>>,
     /// The squared that were visually affected and should be redrawn
     redraw_squares: FxHashSet<SQ>,
@@ -149,6 +150,7 @@ impl GameScene {
         // Size of board
         let square_size = DISPLAYWIDTH as u32 / 8;
         let piece_padding = square_size / 10;
+        let overlay_padding = square_size / 20;
 
         // Calculate hitboxes
         let mut piece_hitboxes = Vec::new();
@@ -177,10 +179,16 @@ impl GameScene {
                 ),
             );
         }
-        let img_piece_selected =
-            IMG_PIECE_SELECTED.resize(square_size, square_size, image::FilterType::Lanczos3);
-        let img_piece_movehint =
-            IMG_PIECE_MOVEHINT.resize(square_size, square_size, image::FilterType::Lanczos3);
+        let img_piece_selected = IMG_PIECE_SELECTED.resize(
+            square_size - overlay_padding * 2,
+            square_size - overlay_padding * 2,
+            image::FilterType::Lanczos3,
+        );
+        let img_piece_movehint = IMG_PIECE_MOVEHINT.resize(
+            square_size - overlay_padding * 2,
+            square_size - overlay_padding * 2,
+            image::FilterType::Lanczos3,
+        );
 
         let (bot_job_tx, bot_job_rx) = channel();
         let (bot_move_tx, bot_move_rx) = channel();
@@ -196,6 +204,7 @@ impl GameScene {
             piece_hitboxes,
             square_size,
             piece_padding,
+            overlay_padding,
             selected_square: None,
             move_hints: Default::default(),
             finger_down_square: None,
@@ -271,7 +280,10 @@ impl GameScene {
                     // Overlay image if square is selected
                     if self.selected_square.is_some() && self.selected_square.unwrap() == square {
                         canvas.draw_image(
-                            bounds.top_left().cast().unwrap(),
+                            Point2 {
+                                x: (bounds.left + self.overlay_padding) as i32,
+                                y: (bounds.top + self.overlay_padding) as i32,
+                            },
                             &self.img_piece_selected,
                             true,
                         );
@@ -281,7 +293,10 @@ impl GameScene {
                 // Overlay image if square is selected
                 if self.move_hints.contains(&square) {
                     canvas.draw_image(
-                        bounds.top_left().cast().unwrap(),
+                        Point2 {
+                            x: (bounds.left + self.overlay_padding) as i32,
+                            y: (bounds.top + self.overlay_padding) as i32,
+                        },
                         &self.img_piece_movehint,
                         true,
                     );
@@ -332,9 +347,6 @@ impl GameScene {
     }
 
     fn try_move(&mut self, bit_move: BitMove) -> Result<(), String> {
-        if !self.current_board.legal_move(bit_move) {
-            return Err("Not a legal move".to_owned());
-        }
         let mut selected_move: Option<BitMove> = None;
         for legal_move in self.current_board.generate_moves().iter() {
             if legal_move.get_src_u8() == bit_move.get_src_u8()
