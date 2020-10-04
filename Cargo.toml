@@ -1,6 +1,6 @@
 [package]
 name = "remarkable-chess"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Linus <linus@cosmos-ink.net>"]
 edition = "2018"
 
