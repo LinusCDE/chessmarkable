@@ -1,0 +1,4 @@
+name=Chess
+desc=Chess
+call=/opt/bin/chess
+imgFile=chess
