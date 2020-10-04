@@ -116,6 +116,7 @@ pub struct GameScene {
     current_board: Board,
     bot_difficulty: Difficulty,
     first_draw: bool,
+    /// Likely because it's currently the turn of the bot
     ignore_user_moves: bool,
     bot_job: Sender<Option<(Board, u16)>>,
     bot_move: Receiver<BitMove>,
@@ -125,15 +126,21 @@ pub struct GameScene {
     square_size: u32,
     piece_padding: u32,
     piece_hitboxes: Vec<Vec<mxcfb_rect>>,
+    /// The squared that were visually affected and should be redrawn
     redraw_squares: FxHashSet<SQ>,
+    /// If the amount of changes squares cannot be easily decided this
+    /// is a easy way to update everything. Has a performance hit though.
     redraw_all_squares: bool,
     selected_square: Option<SQ>,
     move_hints: FxHashSet<SQ>,
+    /// Remember a press to decide whether to show options or do a move at once
+    finger_down_square: Option<SQ>,
     /// Resized to fit selected_square
     img_pieces: FxHashMap</* Piece */ char, image::DynamicImage>,
     img_piece_selected: image::DynamicImage,
     img_piece_movehint: image::DynamicImage,
     pub back_button_pressed: bool,
+    /// Do a full screen refresh on next draw
     force_full_refresh: bool,
 }
 
@@ -191,6 +198,7 @@ impl GameScene {
             piece_padding,
             selected_square: None,
             move_hints: Default::default(),
+            finger_down_square: None,
             img_pieces,
             img_piece_selected,
             img_piece_movehint,
@@ -371,6 +379,26 @@ impl GameScene {
             }
         }
     }
+
+    fn on_user_move(&mut self, src: SQ, dest: SQ) {
+        self.selected_square = None;
+        self.finger_down_square = None;
+        self.clear_move_hints();
+        let bit_move = BitMove::make(0, src, dest);
+        if let Err(e) = self.try_move(bit_move) {
+            println!("Invalid move: {}", e);
+        } else {
+            self.redraw_squares.insert(dest.clone());
+            // Task bot to do a move
+            self.bot_job
+                .send(Some((
+                    self.current_board.clone(),
+                    self.bot_difficulty.clone() as u16,
+                )))
+                .unwrap();
+            self.ignore_user_moves = true;
+        }
+    }
 }
 
 impl Drop for GameScene {
@@ -389,6 +417,15 @@ impl Scene for GameScene {
                 // Taps and buttons
                 match event {
                     multitouch::MultitouchEvent::Press { finger } => {
+                        for x in 0..8 {
+                            for y in 0..8 {
+                                if Canvas::is_hitting(finger.pos, self.piece_hitboxes[x][y]) {
+                                    self.finger_down_square = Some(to_square(x, y));
+                                }
+                            }
+                        }
+                    }
+                    multitouch::MultitouchEvent::Release { finger } => {
                         if self.back_button_hitbox.is_some()
                             && Canvas::is_hitting(finger.pos, self.back_button_hitbox.unwrap())
                         {
@@ -425,31 +462,23 @@ impl Scene for GameScene {
                                                 self.clear_move_hints();
                                             } else {
                                                 // Move
-                                                self.selected_square = None;
-                                                self.clear_move_hints();
-                                                let bit_move = BitMove::make(
-                                                    0,
-                                                    last_selected_square,
-                                                    new_square,
-                                                );
-                                                if let Err(e) = self.try_move(bit_move) {
-                                                    println!("Invalid move: {}", e);
-                                                } else {
-                                                    self.redraw_squares.insert(new_square.clone());
-                                                    // Task bot to do a move
-                                                    self.bot_job
-                                                        .send(Some((
-                                                            self.current_board.clone(),
-                                                            self.bot_difficulty.clone() as u16,
-                                                        )))
-                                                        .unwrap();
-                                                    self.ignore_user_moves = true;
-                                                }
+                                                self.on_user_move(last_selected_square, new_square);
                                             }
                                         } else {
-                                            self.selected_square = Some(new_square);
-                                            self.redraw_squares.insert(new_square.clone());
-                                            self.set_move_hints(new_square);
+                                            let finger_down_square = self
+                                                .finger_down_square
+                                                .unwrap_or(new_square.clone());
+                                            if finger_down_square != new_square {
+                                                // Do immeate move (swiped) without highlighting
+                                                self.redraw_squares
+                                                    .insert(finger_down_square.clone());
+                                                self.on_user_move(finger_down_square, new_square);
+                                            } else {
+                                                // Mark square
+                                                self.selected_square = Some(new_square);
+                                                self.redraw_squares.insert(new_square.clone());
+                                                self.set_move_hints(new_square);
+                                            }
                                         };
                                     }
                                 }
