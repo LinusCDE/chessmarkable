@@ -199,7 +199,7 @@ impl GameScene {
     fn draw_board(&mut self, canvas: &mut Canvas, draw_all: bool) {
         for x in 0..8 {
             for y in 0..8 {
-                let square = to_square(x, y);
+                let square = to_square(x, 7 - y); // Flip board so white is at the bottom
                 if !draw_all && !self.redraw_squares.contains(&square) {
                     continue;
                 }
@@ -266,7 +266,7 @@ impl GameScene {
         let start = SystemTime::now();
         let pleco_board = pleco::Board::from_fen(&board.to_string())
             .expect("Failed to copy default board to pleco");
-        let bot_bit_move = JamboreeSearcher::best_move(pleco_board, 1);
+        let bot_bit_move = JamboreeSearcher::best_move(pleco_board, depth);
         println!("Bot took {}ms", start.elapsed().unwrap().as_millis());
         to_chess_move(bot_bit_move)
     }
@@ -296,7 +296,7 @@ impl Scene for GameScene {
                                     for y in 0..8 {
                                         if Canvas::is_hitting(finger.pos, self.piece_hitboxes[x][y])
                                         {
-                                            let new_square = to_square(x, y);
+                                            let new_square = to_square(x, 7 - y);
                                             if let Some(last_selected_square) = self.selected_square
                                             {
                                                 self.redraw_squares
