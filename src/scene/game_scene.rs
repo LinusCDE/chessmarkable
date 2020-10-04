@@ -114,7 +114,7 @@ pub enum GameMode {
 }
 
 pub struct GameScene {
-    current_board: Board,
+    board: Board,
     game_mode: GameMode,
     first_draw: bool,
     /// Likely because it's currently the turn of the bot
@@ -198,7 +198,7 @@ impl GameScene {
         }
 
         Self {
-            current_board: Default::default(),
+            board: Default::default(),
             first_draw: true,
             bot_job: bot_job_tx,
             bot_move: bot_move_rx,
@@ -264,7 +264,7 @@ impl GameScene {
                         color::GRAY(100)
                     },
                 );
-                let piece = self.current_board.piece_at_sq(square);
+                let piece = self.board.piece_at_sq(square);
                 if piece != Piece::None {
                     // Actual piece here
                     let piece_img = self
@@ -348,7 +348,7 @@ impl GameScene {
 
     fn try_move(&mut self, bit_move: BitMove) -> Result<(), String> {
         let mut selected_move: Option<BitMove> = None;
-        for legal_move in self.current_board.generate_moves().iter() {
+        for legal_move in self.board.generate_moves().iter() {
             if legal_move.get_src_u8() == bit_move.get_src_u8()
                 && legal_move.get_dest_u8() == bit_move.get_dest_u8()
             {
@@ -360,9 +360,9 @@ impl GameScene {
         }
         let selected_move = selected_move.unwrap();
 
-        self.current_board.apply_move(selected_move);
-        if let Err(e) = self.current_board.is_okay() {
-            self.current_board.undo_move();
+        self.board.apply_move(selected_move);
+        if let Err(e) = self.board.is_okay() {
+            self.board.undo_move();
             return Err(format!("Board got into illegal state after move: {:?}", e));
         }
 
@@ -384,7 +384,7 @@ impl GameScene {
     fn set_move_hints(&mut self, square: SQ) {
         self.clear_move_hints();
 
-        for legal_move in self.current_board.generate_moves().iter() {
+        for legal_move in self.board.generate_moves().iter() {
             if legal_move.get_src() == square {
                 self.move_hints.insert(legal_move.get_dest());
                 self.redraw_squares.insert(legal_move.get_dest());
@@ -404,10 +404,7 @@ impl GameScene {
             // Task bot to do a move
             if self.game_mode != GameMode::PvP {
                 self.bot_job
-                    .send(Some((
-                        self.current_board.clone(),
-                        self.game_mode.clone() as u16,
-                    )))
+                    .send(Some((self.board.clone(), self.game_mode.clone() as u16)))
                     .ok();
                 self.ignore_user_moves = true;
             }
@@ -448,15 +445,13 @@ impl Scene for GameScene {
                             && Canvas::is_hitting(finger.pos, self.undo_button_hitbox.unwrap())
                         {
                             if self.game_mode == GameMode::PvP {
-                                if self.current_board.moves_played() >= 1 {
-                                    self.current_board.undo_move();
+                                if self.board.moves_played() >= 1 {
+                                    self.board.undo_move();
                                     self.redraw_all_squares = true;
                                 }
-                            } else if !self.ignore_user_moves
-                                && self.current_board.moves_played() >= 2
-                            {
-                                self.current_board.undo_move(); // Bots move
-                                self.current_board.undo_move(); // Players move
+                            } else if !self.ignore_user_moves && self.board.moves_played() >= 2 {
+                                self.board.undo_move(); // Bots move
+                                self.board.undo_move(); // Players move
                                 self.redraw_all_squares = true;
                             }
                         }
