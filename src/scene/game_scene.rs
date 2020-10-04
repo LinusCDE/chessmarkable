@@ -382,8 +382,9 @@ impl GameScene {
             return Err(format!("Board got into illegal state after move: {:?}", e));
         }
 
-        if selected_move.is_castle() {
-            // More than just src and dest changed
+        // Moves that can change more than just src and dest
+        if selected_move.is_castle() || selected_move.is_en_passant() {
+            // Is en passant even affecting more than dest and src ??
             self.redraw_all_squares = true;
         }
 
