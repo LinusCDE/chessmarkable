@@ -254,10 +254,11 @@ impl GameScene {
     }
 
     fn do_bot_move(board: chess::Board, depth: u16) -> chess::ChessMove {
+        println!("Bot is working...");
         let start = SystemTime::now();
         let pleco_board = pleco::Board::from_fen(&board.to_string())
             .expect("Failed to copy default board to pleco");
-        let bot_bit_move = MiniMaxSearcher::best_move(pleco_board, depth);
+        let bot_bit_move = AlphaBetaSearcher::best_move(pleco_board, depth);
         println!("Bot took {}ms", start.elapsed().unwrap().as_millis());
         to_chess_move(bot_bit_move)
     }
