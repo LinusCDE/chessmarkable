@@ -104,17 +104,18 @@ fn to_square(x: usize, y: usize) -> SQ {
     SQ::make(file, rank)
 }
 
-#[derive(Clone, Copy)]
-pub enum Difficulty {
-    Easy = 1,
-    Normal = 2,
-    Hard = 4,
+#[derive(Clone, Copy, PartialEq)]
+pub enum GameMode {
+    PvP = 0,
+    EasyBot = 1,
+    NormalBot = 2,
+    HardBot = 4,
     // Could go up to about 8-10 (depending on the algo) before getting too slow. But probably fairly unbeatable then.
 }
 
 pub struct GameScene {
     current_board: Board,
-    bot_difficulty: Difficulty,
+    game_mode: GameMode,
     first_draw: bool,
     /// Likely because it's currently the turn of the bot
     ignore_user_moves: bool,
@@ -146,7 +147,7 @@ pub struct GameScene {
 }
 
 impl GameScene {
-    pub fn new(bot_difficulty: Difficulty) -> Self {
+    pub fn new(game_mode: GameMode) -> Self {
         // Size of board
         let square_size = DISPLAYWIDTH as u32 / 8;
         let piece_padding = square_size / 10;
@@ -192,7 +193,9 @@ impl GameScene {
 
         let (bot_job_tx, bot_job_rx) = channel();
         let (bot_move_tx, bot_move_rx) = channel();
-        Self::spawn_bot_thread(bot_job_rx, bot_move_tx);
+        if game_mode != GameMode::PvP {
+            Self::spawn_bot_thread(bot_job_rx, bot_move_tx);
+        }
 
         Self {
             current_board: Default::default(),
@@ -200,7 +203,7 @@ impl GameScene {
             bot_job: bot_job_tx,
             bot_move: bot_move_rx,
             ignore_user_moves: false,
-            bot_difficulty,
+            game_mode,
             piece_hitboxes,
             square_size,
             piece_padding,
@@ -402,13 +405,15 @@ impl GameScene {
         } else {
             self.redraw_squares.insert(dest.clone());
             // Task bot to do a move
-            self.bot_job
-                .send(Some((
-                    self.current_board.clone(),
-                    self.bot_difficulty.clone() as u16,
-                )))
-                .unwrap();
-            self.ignore_user_moves = true;
+            if self.game_mode != GameMode::PvP {
+                self.bot_job
+                    .send(Some((
+                        self.current_board.clone(),
+                        self.game_mode.clone() as u16,
+                    )))
+                    .unwrap();
+                self.ignore_user_moves = true;
+            }
         }
     }
 }
@@ -446,10 +451,17 @@ impl Scene for GameScene {
                         if self.undo_button_hitbox.is_some()
                             && Canvas::is_hitting(finger.pos, self.undo_button_hitbox.unwrap())
                         {
-                            if !self.ignore_user_moves && self.current_board.moves_played() >= 2 {
-                                self.current_board.undo_move(); // Bots move
-                                self.current_board.undo_move(); // Players move
-                                self.redraw_all_squares = true;
+                            if self.game_mode == GameMode::PvP {
+                                if self.current_board.moves_played() >= 1 {
+                                    self.current_board.undo_move();
+                                    self.redraw_all_squares = true;
+                                } else if !self.ignore_user_moves
+                                    && self.current_board.moves_played() >= 2
+                                {
+                                    self.current_board.undo_move(); // Bots move
+                                    self.current_board.undo_move(); // Players move
+                                    self.redraw_all_squares = true;
+                                }
                             }
                         }
                         if self.full_refresh_button_hitbox.is_some()

@@ -66,8 +66,7 @@ fn main() {
     const FPS: u16 = 30;
     const FRAME_DURATION: Duration = Duration::from_millis(1000 / FPS as u64);
 
-    let mut current_scene: Box<dyn Scene> =
-        Box::new(MainMenuScene::new(None, only_exit_to_xochitl));
+    let mut current_scene: Box<dyn Scene> = Box::new(MainMenuScene::new(only_exit_to_xochitl));
 
     loop {
         let before_input = SystemTime::now();
@@ -93,15 +92,17 @@ fn update(
 ) -> Box<dyn Scene> {
     if let Some(game_scene) = scene.downcast_ref::<GameScene>() {
         if game_scene.back_button_pressed {
-            return Box::new(MainMenuScene::new(None, only_exit_to_xochitl));
+            return Box::new(MainMenuScene::new(only_exit_to_xochitl));
         }
     } else if let Some(main_menu_scene) = scene.downcast_ref::<MainMenuScene>() {
-        if main_menu_scene.play_easy_button_pressed {
-            return Box::new(GameScene::new(Difficulty::Easy));
+        if main_menu_scene.play_pvp_button_pressed {
+            return Box::new(GameScene::new(GameMode::PvP));
+        } else if main_menu_scene.play_easy_button_pressed {
+            return Box::new(GameScene::new(GameMode::EasyBot));
         } else if main_menu_scene.play_normal_button_pressed {
-            return Box::new(GameScene::new(Difficulty::Normal));
+            return Box::new(GameScene::new(GameMode::NormalBot));
         } else if main_menu_scene.play_hard_button_pressed {
-            return Box::new(GameScene::new(Difficulty::Hard));
+            return Box::new(GameScene::new(GameMode::HardBot));
         } else if main_menu_scene.exit_xochitl_button_pressed {
             canvas.clear();
             canvas.update_full();

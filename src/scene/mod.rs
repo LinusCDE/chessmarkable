@@ -1,7 +1,7 @@
 mod game_scene;
 mod main_menu_scene;
 
-pub use game_scene::{Difficulty, GameScene};
+pub use game_scene::{GameMode, GameScene};
 pub use main_menu_scene::MainMenuScene;
 
 use crate::canvas::Canvas;
