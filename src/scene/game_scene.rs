@@ -451,13 +451,13 @@ impl Scene for GameScene {
                                 if self.current_board.moves_played() >= 1 {
                                     self.current_board.undo_move();
                                     self.redraw_all_squares = true;
-                                } else if !self.ignore_user_moves
-                                    && self.current_board.moves_played() >= 2
-                                {
-                                    self.current_board.undo_move(); // Bots move
-                                    self.current_board.undo_move(); // Players move
-                                    self.redraw_all_squares = true;
                                 }
+                            } else if !self.ignore_user_moves
+                                && self.current_board.moves_played() >= 2
+                            {
+                                self.current_board.undo_move(); // Bots move
+                                self.current_board.undo_move(); // Players move
+                                self.redraw_all_squares = true;
                             }
                         }
                         if self.full_refresh_button_hitbox.is_some()
