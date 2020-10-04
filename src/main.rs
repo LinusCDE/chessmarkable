@@ -89,11 +89,11 @@ fn update(
         }
     } else if let Some(main_menu_scene) = scene.downcast_ref::<MainMenuScene>() {
         if main_menu_scene.play_easy_button_pressed {
-            return Box::new(GameScene::new());
+            return Box::new(GameScene::new(Difficulty::Easy));
         } else if main_menu_scene.play_normal_button_pressed {
-            return Box::new(GameScene::new());
+            return Box::new(GameScene::new(Difficulty::Normal));
         } else if main_menu_scene.play_hard_button_pressed {
-            return Box::new(GameScene::new());
+            return Box::new(GameScene::new(Difficulty::Hard));
         } else if main_menu_scene.exit_xochitl_button_pressed {
             canvas.clear();
             canvas.update_full();

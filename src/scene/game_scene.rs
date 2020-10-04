@@ -81,9 +81,17 @@ fn to_chess_move(bit_move: pleco::BitMove) -> chess::ChessMove {
     )
 }
 
+#[derive(Clone, Copy)]
+pub enum Difficulty {
+    Easy = 1,
+    Normal = 2,
+    Hard = 4,
+    // Could go up to about 8-10 (depending on the algo) before getting too slow. But probably fairly unbeatable then.
+}
+
 pub struct GameScene {
     game: Game,
-    depth: u16,
+    bot_difficulty: Difficulty,
     first_draw: bool,
     ignore_user_moves: bool,
     bot_job: Sender<Option<(chess::Board, u16)>>,
@@ -100,7 +108,7 @@ pub struct GameScene {
 }
 
 impl GameScene {
-    pub fn new() -> Self {
+    pub fn new(bot_difficulty: Difficulty) -> Self {
         let square_size = DISPLAYWIDTH as u32 / 8;
 
         // Calculate hitboxes
@@ -155,7 +163,7 @@ impl GameScene {
             bot_job: bot_job_tx,
             bot_move: bot_move_rx,
             ignore_user_moves: false,
-            depth: 0,
+            bot_difficulty,
             piece_hitboxes,
             square_size,
             selected_square: None,
@@ -258,7 +266,7 @@ impl GameScene {
         let start = SystemTime::now();
         let pleco_board = pleco::Board::from_fen(&board.to_string())
             .expect("Failed to copy default board to pleco");
-        let bot_bit_move = AlphaBetaSearcher::best_move(pleco_board, depth);
+        let bot_bit_move = JamboreeSearcher::best_move(pleco_board, 1);
         println!("Bot took {}ms", start.elapsed().unwrap().as_millis());
         to_chess_move(bot_bit_move)
     }
@@ -308,14 +316,13 @@ impl Scene for GameScene {
                                                     if self.game.make_move(chess_move) {
                                                         self.redraw_squares
                                                             .push(new_square.clone());
-                                                        self.depth += 1;
                                                         // Task bot to do a move
                                                         self.bot_job
                                                             .send(Some((
                                                                 self.game
                                                                     .current_position()
                                                                     .clone(),
-                                                                self.depth,
+                                                                self.bot_difficulty.clone() as u16,
                                                             )))
                                                             .unwrap();
                                                         self.ignore_user_moves = true;
@@ -369,7 +376,6 @@ impl Scene for GameScene {
                 panic!("The Chess-Bot (pleco lib) made unexpected invalid move according to the \"chess\" lib.");
             }
             println!("Bot decided");
-            self.depth += 1;
             self.ignore_user_moves = false;
         }
 
