@@ -176,7 +176,7 @@ impl Scene for MainMenuScene {
 
     fn on_input(&mut self, event: InputEvent) {
         if let InputEvent::MultitouchEvent { event } = event {
-            if let MultitouchEvent::Press { finger, .. } = event {
+            if let MultitouchEvent::Release { finger, .. } = event {
                 let position = finger.pos;
                 if self.play_pvp_button_hitbox.is_some()
                     && Canvas::is_hitting(position, self.play_pvp_button_hitbox.unwrap())
