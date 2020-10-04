@@ -366,6 +366,16 @@ impl GameScene {
             bit_move
         };
 
+        if bit_move.get_src() == bit_move.get_dest() {
+            // This would bite us because of assertions elsewhere in pleco
+            // Replace with null move
+            println!("Invalid non-moving move found. Doing null move instead.");
+            unsafe {
+                self.board.apply_null_move();
+            }
+            return Ok(());
+        }
+
         self.board.apply_move(selected_move);
         if let Err(e) = self.board.is_okay() {
             self.board.undo_move();
