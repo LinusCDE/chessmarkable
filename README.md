@@ -9,7 +9,7 @@
 
 A chess game for the reMarkable tablet writting using the [pleco](https://crates.io/crates/pleco) chess library which is a port of [Stockfish](https://stockfishchess.org/)
 
-<img src="https://transfer.cosmos-ink.net/122bBC/chess_main_menu.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/QvXAm/chess_initial_board.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/sFtOb/chess_board_castle.jpg" width="30%">
+<img src="https://transfer.cosmos-ink.net/lH2sG/scr1.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/AC8Qx/scr2.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/6LoEA/scr3.jpg" width="30%">
 
 ## Controlling
 
