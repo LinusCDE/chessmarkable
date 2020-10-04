@@ -120,6 +120,8 @@ pub struct GameScene {
     bot_job: Sender<Option<(Board, u16)>>,
     bot_move: Receiver<BitMove>,
     back_button_hitbox: Option<mxcfb_rect>,
+    undo_button_hitbox: Option<mxcfb_rect>,
+    full_refresh_button_hitbox: Option<mxcfb_rect>,
     square_size: u32,
     piece_padding: u32,
     piece_hitboxes: Vec<Vec<mxcfb_rect>>,
@@ -132,6 +134,7 @@ pub struct GameScene {
     img_piece_selected: image::DynamicImage,
     img_piece_movehint: image::DynamicImage,
     pub back_button_pressed: bool,
+    force_full_refresh: bool,
 }
 
 impl GameScene {
@@ -194,7 +197,10 @@ impl GameScene {
             redraw_squares: Default::default(),
             redraw_all_squares: false,
             back_button_hitbox: None,
+            undo_button_hitbox: None,
+            full_refresh_button_hitbox: None,
             back_button_pressed: false,
+            force_full_refresh: false,
         }
     }
 
@@ -383,54 +389,68 @@ impl Scene for GameScene {
                 // Taps and buttons
                 match event {
                     multitouch::MultitouchEvent::Press { finger } => {
-                        if let Some(back_button_hitbox) = self.back_button_hitbox {
-                            if Canvas::is_hitting(finger.pos, back_button_hitbox) {
-                                self.back_button_pressed = true;
-                            } else if !self.ignore_user_moves {
-                                for x in 0..8 {
-                                    for y in 0..8 {
-                                        if Canvas::is_hitting(finger.pos, self.piece_hitboxes[x][y])
-                                        {
-                                            let new_square = to_square(x, y);
-                                            if let Some(last_selected_square) = self.selected_square
-                                            {
-                                                self.redraw_squares
-                                                    .insert(last_selected_square.clone());
+                        if self.back_button_hitbox.is_some()
+                            && Canvas::is_hitting(finger.pos, self.back_button_hitbox.unwrap())
+                        {
+                            self.back_button_pressed = true;
+                        }
+                        if self.undo_button_hitbox.is_some()
+                            && Canvas::is_hitting(finger.pos, self.undo_button_hitbox.unwrap())
+                        {
+                            if !self.ignore_user_moves && self.current_board.moves_played() >= 2 {
+                                self.current_board.undo_move(); // Bots move
+                                self.current_board.undo_move(); // Players move
+                                self.redraw_all_squares = true;
+                            }
+                        }
+                        if self.full_refresh_button_hitbox.is_some()
+                            && Canvas::is_hitting(
+                                finger.pos,
+                                self.full_refresh_button_hitbox.unwrap(),
+                            )
+                        {
+                            self.force_full_refresh = true;
+                        } else if !self.ignore_user_moves {
+                            for x in 0..8 {
+                                for y in 0..8 {
+                                    if Canvas::is_hitting(finger.pos, self.piece_hitboxes[x][y]) {
+                                        let new_square = to_square(x, y);
+                                        if let Some(last_selected_square) = self.selected_square {
+                                            self.redraw_squares
+                                                .insert(last_selected_square.clone());
 
-                                                if last_selected_square == new_square {
-                                                    // Cancel move
-                                                    self.selected_square = None;
-                                                    self.clear_move_hints();
-                                                } else {
-                                                    // Move
-                                                    self.selected_square = None;
-                                                    self.clear_move_hints();
-                                                    let bit_move = BitMove::make(
-                                                        0,
-                                                        last_selected_square,
-                                                        new_square,
-                                                    );
-                                                    if let Err(e) = self.try_move(bit_move) {
-                                                        println!("Invalid move: {}", e);
-                                                    } else {
-                                                        self.redraw_squares
-                                                            .insert(new_square.clone());
-                                                        // Task bot to do a move
-                                                        self.bot_job
-                                                            .send(Some((
-                                                                self.current_board.clone(),
-                                                                self.bot_difficulty.clone() as u16,
-                                                            )))
-                                                            .unwrap();
-                                                        self.ignore_user_moves = true;
-                                                    }
-                                                }
+                                            if last_selected_square == new_square {
+                                                // Cancel move
+                                                self.selected_square = None;
+                                                self.clear_move_hints();
                                             } else {
-                                                self.selected_square = Some(new_square);
-                                                self.redraw_squares.insert(new_square.clone());
-                                                self.set_move_hints(new_square);
-                                            };
-                                        }
+                                                // Move
+                                                self.selected_square = None;
+                                                self.clear_move_hints();
+                                                let bit_move = BitMove::make(
+                                                    0,
+                                                    last_selected_square,
+                                                    new_square,
+                                                );
+                                                if let Err(e) = self.try_move(bit_move) {
+                                                    println!("Invalid move: {}", e);
+                                                } else {
+                                                    self.redraw_squares.insert(new_square.clone());
+                                                    // Task bot to do a move
+                                                    self.bot_job
+                                                        .send(Some((
+                                                            self.current_board.clone(),
+                                                            self.bot_difficulty.clone() as u16,
+                                                        )))
+                                                        .unwrap();
+                                                    self.ignore_user_moves = true;
+                                                }
+                                            }
+                                        } else {
+                                            self.selected_square = Some(new_square);
+                                            self.redraw_squares.insert(new_square.clone());
+                                            self.set_move_hints(new_square);
+                                        };
                                     }
                                 }
                             }
@@ -458,6 +478,34 @@ impl Scene for GameScene {
                 10,
                 20,
             ));
+            self.undo_button_hitbox = Some(canvas.draw_button(
+                Point2 {
+                    x: Some(
+                        self.back_button_hitbox.unwrap().left as i32
+                            + self.back_button_hitbox.unwrap().width as i32
+                            + 50,
+                    ),
+                    y: Some(75),
+                },
+                "Undo",
+                50.0,
+                10,
+                20,
+            ));
+            self.full_refresh_button_hitbox = Some(canvas.draw_button(
+                Point2 {
+                    x: Some(
+                        self.undo_button_hitbox.unwrap().left as i32
+                            + self.undo_button_hitbox.unwrap().width as i32
+                            + 50,
+                    ),
+                    y: Some(75),
+                },
+                "Refresh Screen",
+                50.0,
+                10,
+                20,
+            ));
             self.redraw_all_squares = true;
             self.draw_board(canvas);
             canvas.update_full();
@@ -475,7 +523,7 @@ impl Scene for GameScene {
             self.ignore_user_moves = false;
         }
 
-        if self.redraw_squares.len() > 0 {
+        if self.redraw_all_squares || self.redraw_squares.len() > 0 {
             self.draw_board(canvas);
             self.redraw_all_squares = false;
             canvas.update_partial(&mxcfb_rect {
@@ -484,6 +532,11 @@ impl Scene for GameScene {
                 width: DISPLAYWIDTH.into(),
                 height: DISPLAYHEIGHT.into(),
             });
+        }
+
+        if self.force_full_refresh {
+            canvas.update_full();
+            self.force_full_refresh = false;
         }
     }
 }
