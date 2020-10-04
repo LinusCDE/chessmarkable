@@ -1,0 +1,29 @@
+[build]
+# Basically always adds the --target=... stuff by default
+target = "armv7-unknown-linux-gnueabihf"
+
+# This might work for some who still use the old toolchain
+#[target.armv7-unknown-linux-gnueabihf]
+#linker = "/opt/poky/2.1.3/sysroots/x86_64-pokysdk-linux/usr/bin/arm-poky-linux-gnueabi/arm-poky-linux-gnueabi-gcc"
+#rustflags = [
+#  "-C", "link-arg=-march=armv7-a",
+#  "-C", "link-arg=-marm",
+#  "-C", "link-arg=-mfpu=neon",
+#  "-C", "link-arg=-mfloat-abi=hard",
+#  "-C", "link-arg=-mcpu=cortex-a9",
+#  "-C", "link-arg=--sysroot=/opt/poky/2.1.3/sysroots/cortexa9hf-neon-poky-linux-gnueabi",
+#]
+
+
+# The newer toolchain for the reMarkable.
+# Use install_toolchain.sh to install it,should you don't have it.
+[target.armv7-unknown-linux-gnueabihf]
+linker = "/usr/local/oecore-x86_64/sysroots/x86_64-oesdk-linux/usr/bin/arm-oe-linux-gnueabi/arm-oe-linux-gnueabi-gcc"
+rustflags = [
+  "-C", "link-arg=-march=armv7-a",
+  "-C", "link-arg=-marm",
+  "-C", "link-arg=-mfpu=neon",
+  "-C", "link-arg=-mfloat-abi=hard",
+  "-C", "link-arg=-mcpu=cortex-a9",
+  "-C", "link-arg=--sysroot=/usr/local/oecore-x86_64/sysroots/cortexa9hf-neon-oe-linux-gnueabi",
+]
