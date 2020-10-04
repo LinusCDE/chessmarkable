@@ -1,10 +1,10 @@
 use super::Scene;
 use crate::canvas::*;
-use chess::{Color as PieceColor, File, Game, Piece, Rank, Square};
-use fxhash::FxHashMap;
+use fxhash::{FxHashMap, FxHashSet};
 use libremarkable::image;
 use libremarkable::input::{gpio, multitouch, multitouch::Finger, InputEvent};
 use pleco::bot_prelude::*;
+use pleco::{BitMove, Board, File, Piece, Rank, SQ};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::time::SystemTime;
@@ -56,29 +56,48 @@ lazy_static! {
             .expect("Failed to load resource as image!");
 }
 
-fn to_square(x: usize, y: usize) -> Square {
-    Square::make_square(Rank::from_index(y), File::from_index(x))
-}
+const ALL_PIECES: &[Piece] = &[
+    Piece::BlackKing,
+    Piece::BlackQueen,
+    Piece::BlackBishop,
+    Piece::BlackRook,
+    Piece::BlackKnight,
+    Piece::BlackPawn,
+    Piece::WhiteKing,
+    Piece::WhiteQueen,
+    Piece::WhiteBishop,
+    Piece::WhiteRook,
+    Piece::WhiteKnight,
+    Piece::WhitePawn,
+];
 
-fn to_chess_move(bit_move: pleco::BitMove) -> chess::ChessMove {
-    let promo = if bit_move.is_promo() {
-        Some(match bit_move.promo_piece() {
-            pleco::PieceType::K => Piece::King,
-            pleco::PieceType::Q => Piece::Queen,
-            pleco::PieceType::B => Piece::Bishop,
-            pleco::PieceType::R => Piece::Rook,
-            pleco::PieceType::N => Piece::Knight,
-            pleco::PieceType::P => Piece::Pawn,
-            _ => panic!("Invalid promo piece!"),
-        })
-    } else {
-        None
+fn to_square(x: usize, y: usize) -> SQ {
+    let x = x as u8;
+    let y = y as u8;
+
+    let file = match x {
+        x if x == File::A as u8 => File::A,
+        x if x == File::B as u8 => File::B,
+        x if x == File::C as u8 => File::C,
+        x if x == File::D as u8 => File::D,
+        x if x == File::E as u8 => File::E,
+        x if x == File::F as u8 => File::F,
+        x if x == File::G as u8 => File::G,
+        x if x == File::H as u8 => File::H,
+        _ => panic!("Invalid file for pos"),
     };
-    chess::ChessMove::new(
-        to_square(bit_move.src_col() as usize, bit_move.src_row() as usize),
-        to_square(bit_move.dest_col() as usize, bit_move.dest_row() as usize),
-        promo,
-    )
+    let rank = match y {
+        y if y == Rank::R1 as u8 => Rank::R1,
+        y if y == Rank::R2 as u8 => Rank::R2,
+        y if y == Rank::R3 as u8 => Rank::R3,
+        y if y == Rank::R4 as u8 => Rank::R4,
+        y if y == Rank::R5 as u8 => Rank::R5,
+        y if y == Rank::R6 as u8 => Rank::R6,
+        y if y == Rank::R7 as u8 => Rank::R7,
+        y if y == Rank::R8 as u8 => Rank::R8,
+        _ => panic!("Invalid rank for pos"),
+    };
+    SQ::make(file, rank)
 }
 
 #[derive(Clone, Copy)]
@@ -90,19 +109,20 @@ pub enum Difficulty {
 }
 
 pub struct GameScene {
-    game: Game,
+    current_board: Board,
     bot_difficulty: Difficulty,
     first_draw: bool,
     ignore_user_moves: bool,
-    bot_job: Sender<Option<(chess::Board, u16)>>,
-    bot_move: Receiver<chess::ChessMove>,
+    bot_job: Sender<Option<(Board, u16)>>,
+    bot_move: Receiver<BitMove>,
     back_button_hitbox: Option<mxcfb_rect>,
     square_size: u32,
     piece_hitboxes: Vec<Vec<mxcfb_rect>>,
-    redraw_squares: Vec<Square>,
-    selected_square: Option<Square>,
+    redraw_squares: FxHashSet<SQ>,
+    redraw_all_squares: bool,
+    selected_square: Option<SQ>,
     /// Resized to fit selected_square
-    img_pieces: FxHashMap<(Piece, PieceColor), image::DynamicImage>,
+    img_pieces: FxHashMap</* Piece */ char, image::DynamicImage>,
     img_piece_selected: image::DynamicImage,
     pub back_button_pressed: bool,
 }
@@ -127,28 +147,16 @@ impl GameScene {
         }
 
         // Create resized images
-        let mut img_pieces: FxHashMap<(Piece, PieceColor), image::DynamicImage> =
-            Default::default();
-        for piece_color in [PieceColor::Black, PieceColor::White].iter() {
-            for piece in [
-                Piece::King,
-                Piece::Queen,
-                Piece::Bishop,
-                Piece::Rook,
-                Piece::Knight,
-                Piece::Pawn,
-            ]
-            .iter()
-            {
-                img_pieces.insert(
-                    (*piece, *piece_color),
-                    Self::get_orig_pice_img(piece, piece_color).resize(
-                        square_size,
-                        square_size,
-                        image::FilterType::Lanczos3,
-                    ),
-                );
-            }
+        let mut img_pieces: FxHashMap<char, image::DynamicImage> = Default::default();
+        for piece in ALL_PIECES.iter() {
+            img_pieces.insert(
+                piece.character_lossy(),
+                Self::get_orig_pice_img(piece).resize(
+                    square_size,
+                    square_size,
+                    image::FilterType::Lanczos3,
+                ),
+            );
         }
         let img_piece_selected =
             IMG_PIECE_SELECTED.resize(square_size, square_size, image::FilterType::Lanczos3);
@@ -158,7 +166,7 @@ impl GameScene {
         Self::spawn_bot_thread(bot_job_rx, bot_move_tx);
 
         Self {
-            game: chess::Game::new(),
+            current_board: Default::default(),
             first_draw: true,
             bot_job: bot_job_tx,
             bot_move: bot_move_rx,
@@ -169,38 +177,36 @@ impl GameScene {
             selected_square: None,
             img_pieces,
             img_piece_selected,
-            redraw_squares: Vec::new(),
+            redraw_squares: Default::default(),
+            redraw_all_squares: false,
             back_button_hitbox: None,
             back_button_pressed: false,
         }
     }
 
-    fn get_orig_pice_img(piece: &Piece, color: &PieceColor) -> &'static image::DynamicImage {
-        match color {
-            PieceColor::Black => match piece {
-                Piece::King => &IMG_KING_BLACK,
-                Piece::Queen => &IMG_QUEEN_BLACK,
-                Piece::Bishop => &IMG_BISHOP_BLACK,
-                Piece::Rook => &IMG_ROOK_BLACK,
-                Piece::Knight => &IMG_KNIGHT_BLACK,
-                Piece::Pawn => &IMG_PAWN_BLACK,
-            },
-            PieceColor::White => match piece {
-                Piece::King => &IMG_KING_WHITE,
-                Piece::Queen => &IMG_QUEEN_WHITE,
-                Piece::Bishop => &IMG_BISHOP_WHITE,
-                Piece::Rook => &IMG_ROOK_WHITE,
-                Piece::Knight => &IMG_KNIGHT_WHITE,
-                Piece::Pawn => &IMG_PAWN_WHITE,
-            },
+    fn get_orig_pice_img(piece: &Piece) -> &'static image::DynamicImage {
+        match *piece {
+            Piece::BlackKing => &IMG_KING_BLACK,
+            Piece::BlackQueen => &IMG_QUEEN_BLACK,
+            Piece::BlackBishop => &IMG_BISHOP_BLACK,
+            Piece::BlackRook => &IMG_ROOK_BLACK,
+            Piece::BlackKnight => &IMG_KNIGHT_BLACK,
+            Piece::BlackPawn => &IMG_PAWN_BLACK,
+            Piece::WhiteKing => &IMG_KING_WHITE,
+            Piece::WhiteQueen => &IMG_QUEEN_WHITE,
+            Piece::WhiteBishop => &IMG_BISHOP_WHITE,
+            Piece::WhiteRook => &IMG_ROOK_WHITE,
+            Piece::WhiteKnight => &IMG_KNIGHT_WHITE,
+            Piece::WhitePawn => &IMG_PAWN_WHITE,
+            Piece::None => panic!("Cannot get img for Piece::None"),
         }
     }
 
-    fn draw_board(&mut self, canvas: &mut Canvas, draw_all: bool) {
+    fn draw_board(&mut self, canvas: &mut Canvas) {
         for x in 0..8 {
             for y in 0..8 {
                 let square = to_square(x, 7 - y); // Flip board so white is at the bottom
-                if !draw_all && !self.redraw_squares.contains(&square) {
+                if !self.redraw_all_squares && !self.redraw_squares.contains(&square) {
                     continue;
                 }
 
@@ -218,15 +224,15 @@ impl GameScene {
                         color::GRAY(100)
                     },
                 );
-                if let Some(piece) = self.game.current_position().piece_on(square) {
-                    let piece_color = self.game.current_position().color_on(square).unwrap();
-
-                    let piece_img = self
-                        .img_pieces
-                        .get(&(piece, piece_color))
-                        .expect("Failed to find resized piece img!");
-                    canvas.draw_image(bounds.top_left().cast().unwrap(), &piece_img, true);
+                let piece = self.current_board.piece_at_sq(square);
+                if piece == Piece::None {
+                    continue;
                 }
+                let piece_img = self
+                    .img_pieces
+                    .get(&piece.character_lossy())
+                    .expect("Failed to find resized piece img!");
+                canvas.draw_image(bounds.top_left().cast().unwrap(), &piece_img, true);
 
                 // Overlay image if square is selected
                 if self.selected_square.is_some() && self.selected_square.unwrap() == square {
@@ -240,11 +246,12 @@ impl GameScene {
         }
 
         self.redraw_squares.clear();
+        self.redraw_all_squares = false;
     }
 
     fn spawn_bot_thread(
-        job: Receiver<Option<(chess::Board, u16)>>,
-        job_result: Sender<chess::ChessMove>,
+        job: Receiver<Option<(Board, u16)>>,
+        job_result: Sender<BitMove>,
     ) -> thread::JoinHandle<()> {
         thread::Builder::new()
             .name("ChessBot".to_owned())
@@ -261,14 +268,45 @@ impl GameScene {
             .unwrap()
     }
 
-    fn do_bot_move(board: chess::Board, depth: u16) -> chess::ChessMove {
+    fn do_bot_move(board: Board, depth: u16) -> BitMove {
         println!("Bot is working...");
         let start = SystemTime::now();
-        let pleco_board = pleco::Board::from_fen(&board.to_string())
-            .expect("Failed to copy default board to pleco");
-        let bot_bit_move = JamboreeSearcher::best_move(pleco_board, depth);
+        //let depth = board.depth() + 1; // Should probably be this
+        println!("Depth: {}", depth);
+        let bot_bit_move = JamboreeSearcher::best_move(board, depth);
         println!("Bot took {}ms", start.elapsed().unwrap().as_millis());
-        to_chess_move(bot_bit_move)
+        bot_bit_move
+    }
+
+    fn try_move(&mut self, bit_move: BitMove) -> Result<(), String> {
+        if !self.current_board.legal_move(bit_move) {
+            return Err("Not a legal move".to_owned());
+        }
+        let mut selected_move: Option<BitMove> = None;
+        for legal_move in self.current_board.generate_moves().iter() {
+            if legal_move.get_src_u8() == bit_move.get_src_u8()
+                && legal_move.get_dest_u8() == bit_move.get_dest_u8()
+            {
+                selected_move = Some(legal_move.clone());
+            }
+        }
+        if selected_move.is_none() {
+            return Err("Move not found as possibility".to_owned());
+        }
+        let selected_move = selected_move.unwrap();
+
+        self.current_board.apply_move(selected_move);
+        if let Err(e) = self.current_board.is_okay() {
+            self.current_board.undo_move();
+            return Err(format!("Board got into illegal state after move: {:?}", e));
+        }
+
+        if selected_move.is_castle() {
+            // More than just src and dest changed
+            self.redraw_all_squares = true;
+        }
+
+        Ok(())
     }
 }
 
@@ -283,7 +321,7 @@ impl Drop for GameScene {
 impl Scene for GameScene {
     fn on_input(&mut self, event: InputEvent) {
         match event {
-            InputEvent::GPIO { event } => {}
+            InputEvent::GPIO { .. } => {}
             InputEvent::MultitouchEvent { event } => {
                 // Taps and buttons
                 match event {
@@ -300,7 +338,7 @@ impl Scene for GameScene {
                                             if let Some(last_selected_square) = self.selected_square
                                             {
                                                 self.redraw_squares
-                                                    .push(last_selected_square.clone());
+                                                    .insert(last_selected_square.clone());
 
                                                 if last_selected_square == new_square {
                                                     // Cancel move
@@ -308,31 +346,29 @@ impl Scene for GameScene {
                                                 } else {
                                                     // Move
                                                     self.selected_square = None;
-                                                    let chess_move = chess::ChessMove::new(
+                                                    let bit_move = BitMove::make(
+                                                        0,
                                                         last_selected_square,
                                                         new_square,
-                                                        None,
                                                     );
-                                                    if self.game.make_move(chess_move) {
+                                                    if let Err(e) = self.try_move(bit_move) {
+                                                        println!("Invalid move: {}", e);
+                                                    } else {
                                                         self.redraw_squares
-                                                            .push(new_square.clone());
+                                                            .insert(new_square.clone());
                                                         // Task bot to do a move
                                                         self.bot_job
                                                             .send(Some((
-                                                                self.game
-                                                                    .current_position()
-                                                                    .clone(),
+                                                                self.current_board.clone(),
                                                                 self.bot_difficulty.clone() as u16,
                                                             )))
                                                             .unwrap();
                                                         self.ignore_user_moves = true;
-                                                    } else {
-                                                        println!("Invalid move");
                                                     }
                                                 }
                                             } else {
                                                 self.selected_square = Some(new_square);
-                                                self.redraw_squares.push(new_square.clone());
+                                                self.redraw_squares.insert(new_square.clone());
                                             };
                                         }
                                     }
@@ -362,25 +398,26 @@ impl Scene for GameScene {
                 10,
                 20,
             ));
-            self.draw_board(canvas, true);
+            self.redraw_all_squares = true;
+            self.draw_board(canvas);
             canvas.update_full();
             self.first_draw = false;
         }
 
         // Await bot move
-        if let Ok(bot_chess_move) = self.bot_move.try_recv() {
-            if self.game.make_move(bot_chess_move) {
-                self.redraw_squares.push(bot_chess_move.get_source());
-                self.redraw_squares.push(bot_chess_move.get_dest());
-            } else {
-                panic!("The Chess-Bot (pleco lib) made unexpected invalid move according to the \"chess\" lib.");
+        if let Ok(bot_bit_move) = self.bot_move.try_recv() {
+            if let Err(e) = self.try_move(bot_bit_move) {
+                panic!("Invalid move by bot: {}", e);
             }
-            println!("Bot decided");
+            self.redraw_squares.insert(bot_bit_move.get_src());
+            self.redraw_squares.insert(bot_bit_move.get_dest());
+            println!("Bot moved");
             self.ignore_user_moves = false;
         }
 
         if self.redraw_squares.len() > 0 {
-            self.draw_board(canvas, false);
+            self.draw_board(canvas);
+            self.redraw_all_squares = false;
             canvas.update_partial(&mxcfb_rect {
                 left: 0,
                 top: 0,
