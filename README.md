@@ -40,3 +40,15 @@ The second method has the advantage that it doesn't highlight the chess piece or
 - Install the [oecore toolchain](https://remarkable.engineering/).
   - If you're not using linux, you might want to adjust the path in `.cargo/config`
 - Compile it with `cargo build --release`. It should automatically cross-compile.
+
+## Todo
+
+- Proper own icon(s)
+- Check whether the difficulties are good (let me please know in the issues if not)
+- Some more information for the user on invalid moves
+- Fix potential errors that are currently not checked and instead can kill the game
+
+## Credit
+
+- The [pleco](https://crates.io/crates/pleco) library is used as the engine, checking valid moves and providing the bots
+- The chess pices are from [pixabay here](https://pixabay.com/vectors/chess-pieces-set-symbols-game-26774/)
