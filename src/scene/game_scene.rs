@@ -144,6 +144,7 @@ pub struct GameScene {
     pub back_button_pressed: bool,
     /// Do a full screen refresh on next draw
     force_full_refresh: Option<SystemTime>,
+    last_checkmate_check: SystemTime,
 }
 
 impl GameScene {
@@ -221,6 +222,7 @@ impl GameScene {
             full_refresh_button_hitbox: None,
             back_button_pressed: false,
             force_full_refresh: None,
+            last_checkmate_check: SystemTime::now(),
         }
     }
 
@@ -587,6 +589,29 @@ impl Scene for GameScene {
         {
             canvas.update_full();
             self.force_full_refresh = None;
+        }
+
+        // Check periodicially for checkmate.
+        // The function pleco::Board::checkmate() is supposed to be compuationally
+        // expensive. I measured 2-3us at the beginning on the rM1 but who knows.
+        // This more a compromize between development speed and correctness.
+        let checkmate_check_elapsed = self.last_checkmate_check.elapsed();
+        if checkmate_check_elapsed.is_ok()
+            && checkmate_check_elapsed.unwrap() > Duration::from_millis(3000)
+            && self.board.checkmate()
+        {
+            self.last_checkmate_check = SystemTime::now();
+            canvas.draw_text(
+                Point2 {
+                    x: None,
+                    y: Some(DISPLAYHEIGHT as i32 - 100),
+                },
+                "Checkmate!",
+                100.0,
+            );
+            unsafe {
+                self.board.apply_null_move(); // Allow the other to go on
+            }
         }
     }
 }
