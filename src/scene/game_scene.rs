@@ -518,7 +518,7 @@ impl Scene for GameScene {
             self.back_button_hitbox = Some(canvas.draw_button(
                 Point2 {
                     x: Some(50),
-                    y: Some(75),
+                    y: Some(90),
                 },
                 "Main Menu",
                 75.0,
@@ -532,7 +532,7 @@ impl Scene for GameScene {
                             + self.back_button_hitbox.unwrap().width as i32
                             + 50,
                     ),
-                    y: Some(75),
+                    y: Some(90),
                 },
                 "Undo",
                 75.0,
@@ -546,7 +546,7 @@ impl Scene for GameScene {
                             + self.undo_button_hitbox.unwrap().width as i32
                             + 50,
                     ),
-                    y: Some(75),
+                    y: Some(90),
                 },
                 "Refresh Screen",
                 75.0,
