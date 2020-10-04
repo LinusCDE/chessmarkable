@@ -117,6 +117,7 @@ pub struct GameScene {
     bot_move: Receiver<BitMove>,
     back_button_hitbox: Option<mxcfb_rect>,
     square_size: u32,
+    piece_padding: u32,
     piece_hitboxes: Vec<Vec<mxcfb_rect>>,
     redraw_squares: FxHashSet<SQ>,
     redraw_all_squares: bool,
@@ -129,7 +130,9 @@ pub struct GameScene {
 
 impl GameScene {
     pub fn new(bot_difficulty: Difficulty) -> Self {
+        // Size of board
         let square_size = DISPLAYWIDTH as u32 / 8;
+        let piece_padding = square_size / 10;
 
         // Calculate hitboxes
         let mut piece_hitboxes = Vec::new();
@@ -152,8 +155,8 @@ impl GameScene {
             img_pieces.insert(
                 piece.character_lossy(),
                 Self::get_orig_pice_img(piece).resize(
-                    square_size,
-                    square_size,
+                    square_size - piece_padding * 2,
+                    square_size - piece_padding * 2,
                     image::FilterType::Lanczos3,
                 ),
             );
@@ -174,6 +177,7 @@ impl GameScene {
             bot_difficulty,
             piece_hitboxes,
             square_size,
+            piece_padding,
             selected_square: None,
             img_pieces,
             img_piece_selected,
@@ -232,7 +236,14 @@ impl GameScene {
                     .img_pieces
                     .get(&piece.character_lossy())
                     .expect("Failed to find resized piece img!");
-                canvas.draw_image(bounds.top_left().cast().unwrap(), &piece_img, true);
+                canvas.draw_image(
+                    Point2 {
+                        x: (bounds.left + self.piece_padding) as i32,
+                        y: (bounds.top + self.piece_padding) as i32,
+                    },
+                    &piece_img,
+                    true,
+                );
 
                 // Overlay image if square is selected
                 if self.selected_square.is_some() && self.selected_square.unwrap() == square {

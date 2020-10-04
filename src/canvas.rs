@@ -48,7 +48,7 @@ impl<'a> Canvas<'a> {
             PartialRefreshMode::Async,
             waveform_mode::WAVEFORM_MODE_GC16_FAST,
             display_temp::TEMP_USE_REMARKABLE_DRAW,
-            dither_mode::EPDC_FLAG_USE_DITHERING_DRAWING,
+            dither_mode::EPDC_FLAG_USE_REMARKABLE_DITHER,
             0, // See documentation on DRAWING_QUANT_BITS in libremarkable/framebuffer/common.rs
             false,
         );
