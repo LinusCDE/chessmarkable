@@ -526,7 +526,7 @@ impl Scene for GameScene {
                     y: Some(75),
                 },
                 "Main Menu",
-                50.0,
+                75.0,
                 10,
                 20,
             ));
@@ -540,7 +540,7 @@ impl Scene for GameScene {
                     y: Some(75),
                 },
                 "Undo",
-                50.0,
+                75.0,
                 10,
                 20,
             ));
@@ -554,7 +554,7 @@ impl Scene for GameScene {
                     y: Some(75),
                 },
                 "Refresh Screen",
-                50.0,
+                75.0,
                 10,
                 20,
             ));
