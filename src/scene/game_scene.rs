@@ -143,7 +143,7 @@ pub struct GameScene {
     img_piece_movehint: image::DynamicImage,
     pub back_button_pressed: bool,
     /// Do a full screen refresh on next draw
-    force_full_refresh: bool,
+    force_full_refresh: Option<SystemTime>,
 }
 
 impl GameScene {
@@ -220,7 +220,7 @@ impl GameScene {
             undo_button_hitbox: None,
             full_refresh_button_hitbox: None,
             back_button_pressed: false,
-            force_full_refresh: false,
+            force_full_refresh: None,
         }
     }
 
@@ -341,11 +341,8 @@ impl GameScene {
 
     fn do_bot_move(board: Board, depth: u16) -> BitMove {
         println!("Bot is working...");
-        let start = SystemTime::now();
         //let depth = board.depth() + 1; // Should probably be this
-        println!("Depth: {}", depth);
         let bot_bit_move = JamboreeSearcher::best_move(board, depth);
-        println!("Bot took {}ms", start.elapsed().unwrap().as_millis());
         bot_bit_move
     }
 
@@ -429,7 +426,6 @@ impl Drop for GameScene {
 impl Scene for GameScene {
     fn on_input(&mut self, event: InputEvent) {
         match event {
-            InputEvent::GPIO { .. } => {}
             InputEvent::MultitouchEvent { event } => {
                 // Taps and buttons
                 match event {
@@ -470,7 +466,7 @@ impl Scene for GameScene {
                                 self.full_refresh_button_hitbox.unwrap(),
                             )
                         {
-                            self.force_full_refresh = true;
+                            self.force_full_refresh = Some(SystemTime::now());
                         } else if !self.ignore_user_moves {
                             for x in 0..8 {
                                 for y in 0..8 {
@@ -486,14 +482,16 @@ impl Scene for GameScene {
                                                 self.clear_move_hints();
                                             } else {
                                                 // Move
+                                                self.redraw_squares.insert(new_square.clone());
                                                 self.on_user_move(last_selected_square, new_square);
                                             }
                                         } else {
                                             let finger_down_square = self
                                                 .finger_down_square
                                                 .unwrap_or(new_square.clone());
-                                            if finger_down_square != new_square {
+                                            if finger_down_square.0 != new_square.0 {
                                                 // Do immeate move (swiped) without highlighting
+
                                                 self.redraw_squares
                                                     .insert(finger_down_square.clone());
                                                 self.on_user_move(finger_down_square, new_square);
@@ -564,6 +562,8 @@ impl Scene for GameScene {
             self.draw_board(canvas);
             canvas.update_full();
             self.first_draw = false;
+            // Refresh again after 500ms
+            self.force_full_refresh = Some(SystemTime::now() + Duration::from_millis(500));
         }
 
         // Await bot move
@@ -588,9 +588,10 @@ impl Scene for GameScene {
             });
         }
 
-        if self.force_full_refresh {
+        if self.force_full_refresh.is_some() && self.force_full_refresh.unwrap() < SystemTime::now()
+        {
             canvas.update_full();
-            self.force_full_refresh = false;
+            self.force_full_refresh = None;
         }
     }
 }
