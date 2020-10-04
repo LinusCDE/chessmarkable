@@ -12,7 +12,7 @@ use std::time::SystemTime;
 lazy_static! {
     // Black set
     static ref IMG_KING_BLACK: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/knight-black.png"))
+        image::load_from_memory(include_bytes!("../../res/king-black.png"))
             .expect("Failed to load resource as image!");
     static ref IMG_QUEEN_BLACK: image::DynamicImage =
         image::load_from_memory(include_bytes!("../../res/queen-black.png"))
@@ -32,7 +32,7 @@ lazy_static! {
 
     // White set
     static ref IMG_KING_WHITE: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/knight-white.png"))
+        image::load_from_memory(include_bytes!("../../res/king-white.png"))
             .expect("Failed to load resource as image!");
     static ref IMG_QUEEN_WHITE: image::DynamicImage =
         image::load_from_memory(include_bytes!("../../res/queen-white.png"))
