@@ -5,6 +5,9 @@ use fxhash::FxHashMap;
 use libremarkable::image;
 use libremarkable::input::{gpio, multitouch, multitouch::Finger, InputEvent};
 use pleco::bot_prelude::*;
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::thread;
+use std::time::SystemTime;
 
 lazy_static! {
     // Black set
@@ -82,6 +85,9 @@ pub struct GameScene {
     game: Game,
     depth: u16,
     first_draw: bool,
+    ignore_user_moves: bool,
+    bot_job: Sender<Option<(chess::Board, u16)>>,
+    bot_move: Receiver<chess::ChessMove>,
     back_button_hitbox: Option<mxcfb_rect>,
     square_size: u32,
     piece_hitboxes: Vec<Vec<mxcfb_rect>>,
@@ -139,9 +145,16 @@ impl GameScene {
         let img_piece_selected =
             IMG_PIECE_SELECTED.resize(square_size, square_size, image::FilterType::Lanczos3);
 
+        let (bot_job_tx, bot_job_rx) = channel();
+        let (bot_move_tx, bot_move_rx) = channel();
+        Self::spawn_bot_thread(bot_job_rx, bot_move_tx);
+
         Self {
             game: chess::Game::new(),
             first_draw: true,
+            bot_job: bot_job_tx,
+            bot_move: bot_move_rx,
+            ignore_user_moves: false,
             depth: 0,
             piece_hitboxes,
             square_size,
@@ -221,21 +234,40 @@ impl GameScene {
         self.redraw_squares.clear();
     }
 
-    fn do_bot_move(&mut self) {
-        println!("Running bot...");
-        let pleco_board = pleco::Board::from_fen(&self.game.current_position().to_string())
+    fn spawn_bot_thread(
+        job: Receiver<Option<(chess::Board, u16)>>,
+        job_result: Sender<chess::ChessMove>,
+    ) -> thread::JoinHandle<()> {
+        thread::Builder::new()
+            .name("ChessBot".to_owned())
+            .spawn(move || loop {
+                let job_data = job.recv().unwrap();
+                if job_data.is_none() {
+                    // Abort requested
+                    println!("Bot thread is terminating");
+                    break;
+                }
+                let (board, depth) = job_data.unwrap();
+                job_result.send(Self::do_bot_move(board, depth)).unwrap();
+            })
+            .unwrap()
+    }
+
+    fn do_bot_move(board: chess::Board, depth: u16) -> chess::ChessMove {
+        let start = SystemTime::now();
+        let pleco_board = pleco::Board::from_fen(&board.to_string())
             .expect("Failed to copy default board to pleco");
-        let bot_bit_move = MiniMaxSearcher::best_move(pleco_board, self.depth);
-        let bot_chess_move = to_chess_move(bot_bit_move);
-        if self.game.make_move(bot_chess_move) {
-            self.redraw_squares.push(bot_chess_move.get_source());
-            self.redraw_squares.push(bot_chess_move.get_dest());
-        } else {
-            panic!("Bot (pleco) made unexpected invalid move according to the \"chess\" lib.");
-        }
-        //println!("Botmove: {}", bot_move);
-        println!("Bot decided");
-        self.depth += 1;
+        let bot_bit_move = MiniMaxSearcher::best_move(pleco_board, depth);
+        println!("Bot took {}ms", start.elapsed().unwrap().as_millis());
+        to_chess_move(bot_bit_move)
+    }
+}
+
+impl Drop for GameScene {
+    fn drop(&mut self) {
+        // Signal bot thread to terminate
+        self.bot_job.send(None).unwrap();
+        println!("Bot thread should terminate");
     }
 }
 
@@ -250,7 +282,7 @@ impl Scene for GameScene {
                         if let Some(back_button_hitbox) = self.back_button_hitbox {
                             if Canvas::is_hitting(finger.pos, back_button_hitbox) {
                                 self.back_button_pressed = true;
-                            } else {
+                            } else if !self.ignore_user_moves {
                                 for x in 0..8 {
                                     for y in 0..8 {
                                         if Canvas::is_hitting(finger.pos, self.piece_hitboxes[x][y])
@@ -276,7 +308,16 @@ impl Scene for GameScene {
                                                         self.redraw_squares
                                                             .push(new_square.clone());
                                                         self.depth += 1;
-                                                        self.do_bot_move();
+                                                        // Task bot to do a move
+                                                        self.bot_job
+                                                            .send(Some((
+                                                                self.game
+                                                                    .current_position()
+                                                                    .clone(),
+                                                                self.depth,
+                                                            )))
+                                                            .unwrap();
+                                                        self.ignore_user_moves = true;
                                                     } else {
                                                         println!("Invalid move");
                                                     }
@@ -316,6 +357,19 @@ impl Scene for GameScene {
             self.draw_board(canvas, true);
             canvas.update_full();
             self.first_draw = false;
+        }
+
+        // Await bot move
+        if let Ok(bot_chess_move) = self.bot_move.try_recv() {
+            if self.game.make_move(bot_chess_move) {
+                self.redraw_squares.push(bot_chess_move.get_source());
+                self.redraw_squares.push(bot_chess_move.get_dest());
+            } else {
+                panic!("The Chess-Bot (pleco lib) made unexpected invalid move according to the \"chess\" lib.");
+            }
+            println!("Bot decided");
+            self.depth += 1;
+            self.ignore_user_moves = false;
         }
 
         if self.redraw_squares.len() > 0 {
