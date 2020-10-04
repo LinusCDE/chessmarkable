@@ -348,19 +348,23 @@ impl GameScene {
         bot_bit_move
     }
 
-    fn try_move(&mut self, bit_move: BitMove) -> Result<(), String> {
-        let mut selected_move: Option<BitMove> = None;
-        for legal_move in self.board.generate_moves().iter() {
-            if legal_move.get_src_u8() == bit_move.get_src_u8()
-                && legal_move.get_dest_u8() == bit_move.get_dest_u8()
-            {
-                selected_move = Some(legal_move.clone());
+    fn try_move(&mut self, bit_move: BitMove, trust_move: bool) -> Result<(), String> {
+        let selected_move: BitMove = if !trust_move {
+            let mut selected_move: Option<BitMove> = None;
+            for legal_move in self.board.generate_moves().iter() {
+                if legal_move.get_src_u8() == bit_move.get_src_u8()
+                    && legal_move.get_dest_u8() == bit_move.get_dest_u8()
+                {
+                    selected_move = Some(legal_move.clone());
+                }
             }
-        }
-        if selected_move.is_none() {
-            return Err("Move not found as possibility".to_owned());
-        }
-        let selected_move = selected_move.unwrap();
+            if selected_move.is_none() {
+                return Err("Move not found as possibility".to_owned());
+            }
+            selected_move.unwrap()
+        } else {
+            bit_move
+        };
 
         self.board.apply_move(selected_move);
         if let Err(e) = self.board.is_okay() {
@@ -399,7 +403,7 @@ impl GameScene {
         self.finger_down_square = None;
         self.clear_move_hints();
         let bit_move = BitMove::make(0, src, dest);
-        if let Err(e) = self.try_move(bit_move) {
+        if let Err(e) = self.try_move(bit_move, false) {
             println!("Invalid move: {}", e);
         } else {
             self.redraw_squares.insert(dest.clone());
@@ -565,7 +569,7 @@ impl Scene for GameScene {
 
         // Await bot move
         if let Ok(bot_bit_move) = self.bot_move.try_recv() {
-            if let Err(e) = self.try_move(bot_bit_move) {
+            if let Err(e) = self.try_move(bot_bit_move, true) {
                 panic!("Invalid move by bot: {}", e);
             }
             self.redraw_squares.insert(bot_bit_move.get_src());
