@@ -54,6 +54,9 @@ lazy_static! {
     static ref IMG_PIECE_SELECTED: image::DynamicImage =
         image::load_from_memory(include_bytes!("../../res/piece-selected.png"))
             .expect("Failed to load resource as image!");
+    static ref IMG_PIECE_MOVEHINT: image::DynamicImage =
+        image::load_from_memory(include_bytes!("../../res/piece-move-hint.png"))
+            .expect("Failed to load resource as image!");
 }
 
 const ALL_PIECES: &[Piece] = &[
@@ -122,9 +125,11 @@ pub struct GameScene {
     redraw_squares: FxHashSet<SQ>,
     redraw_all_squares: bool,
     selected_square: Option<SQ>,
+    move_hints: FxHashSet<SQ>,
     /// Resized to fit selected_square
     img_pieces: FxHashMap</* Piece */ char, image::DynamicImage>,
     img_piece_selected: image::DynamicImage,
+    img_piece_movehint: image::DynamicImage,
     pub back_button_pressed: bool,
 }
 
@@ -141,7 +146,7 @@ impl GameScene {
             for y in 0..8 {
                 y_axis.push(mxcfb_rect {
                     left: ((DISPLAYWIDTH as u32 - square_size * 8) / 2) + square_size * x,
-                    top: ((DISPLAYHEIGHT as u32 - square_size * 8) / 2) + square_size * y,
+                    top: ((DISPLAYHEIGHT as u32 - square_size * 8) / 2) + square_size * (7 - y),
                     width: square_size,
                     height: square_size,
                 });
@@ -163,6 +168,8 @@ impl GameScene {
         }
         let img_piece_selected =
             IMG_PIECE_SELECTED.resize(square_size, square_size, image::FilterType::Lanczos3);
+        let img_piece_movehint =
+            IMG_PIECE_MOVEHINT.resize(square_size, square_size, image::FilterType::Lanczos3);
 
         let (bot_job_tx, bot_job_rx) = channel();
         let (bot_move_tx, bot_move_rx) = channel();
@@ -179,8 +186,10 @@ impl GameScene {
             square_size,
             piece_padding,
             selected_square: None,
+            move_hints: Default::default(),
             img_pieces,
             img_piece_selected,
+            img_piece_movehint,
             redraw_squares: Default::default(),
             redraw_all_squares: false,
             back_button_hitbox: None,
@@ -209,7 +218,7 @@ impl GameScene {
     fn draw_board(&mut self, canvas: &mut Canvas) {
         for x in 0..8 {
             for y in 0..8 {
-                let square = to_square(x, 7 - y); // Flip board so white is at the bottom
+                let square = to_square(x, y); // Flip board so white is at the bottom
                 if !self.redraw_all_squares && !self.redraw_squares.contains(&square) {
                     continue;
                 }
@@ -229,27 +238,36 @@ impl GameScene {
                     },
                 );
                 let piece = self.current_board.piece_at_sq(square);
-                if piece == Piece::None {
-                    continue;
+                if piece != Piece::None {
+                    // Actual piece here
+                    let piece_img = self
+                        .img_pieces
+                        .get(&piece.character_lossy())
+                        .expect("Failed to find resized piece img!");
+                    canvas.draw_image(
+                        Point2 {
+                            x: (bounds.left + self.piece_padding) as i32,
+                            y: (bounds.top + self.piece_padding) as i32,
+                        },
+                        &piece_img,
+                        true,
+                    );
+
+                    // Overlay image if square is selected
+                    if self.selected_square.is_some() && self.selected_square.unwrap() == square {
+                        canvas.draw_image(
+                            bounds.top_left().cast().unwrap(),
+                            &self.img_piece_selected,
+                            true,
+                        );
+                    }
                 }
-                let piece_img = self
-                    .img_pieces
-                    .get(&piece.character_lossy())
-                    .expect("Failed to find resized piece img!");
-                canvas.draw_image(
-                    Point2 {
-                        x: (bounds.left + self.piece_padding) as i32,
-                        y: (bounds.top + self.piece_padding) as i32,
-                    },
-                    &piece_img,
-                    true,
-                );
 
                 // Overlay image if square is selected
-                if self.selected_square.is_some() && self.selected_square.unwrap() == square {
+                if self.move_hints.contains(&square) {
                     canvas.draw_image(
                         bounds.top_left().cast().unwrap(),
-                        &self.img_piece_selected,
+                        &self.img_piece_movehint,
                         true,
                     );
                 }
@@ -319,6 +337,24 @@ impl GameScene {
 
         Ok(())
     }
+
+    fn clear_move_hints(&mut self) {
+        for last_move_hint in &self.move_hints {
+            self.redraw_squares.insert(last_move_hint.clone());
+        }
+        self.move_hints.clear();
+    }
+
+    fn set_move_hints(&mut self, square: SQ) {
+        self.clear_move_hints();
+
+        for legal_move in self.current_board.generate_moves().iter() {
+            if legal_move.get_src() == square {
+                self.move_hints.insert(legal_move.get_dest());
+                self.redraw_squares.insert(legal_move.get_dest());
+            }
+        }
+    }
 }
 
 impl Drop for GameScene {
@@ -345,7 +381,7 @@ impl Scene for GameScene {
                                     for y in 0..8 {
                                         if Canvas::is_hitting(finger.pos, self.piece_hitboxes[x][y])
                                         {
-                                            let new_square = to_square(x, 7 - y);
+                                            let new_square = to_square(x, y);
                                             if let Some(last_selected_square) = self.selected_square
                                             {
                                                 self.redraw_squares
@@ -354,9 +390,11 @@ impl Scene for GameScene {
                                                 if last_selected_square == new_square {
                                                     // Cancel move
                                                     self.selected_square = None;
+                                                    self.clear_move_hints();
                                                 } else {
                                                     // Move
                                                     self.selected_square = None;
+                                                    self.clear_move_hints();
                                                     let bit_move = BitMove::make(
                                                         0,
                                                         last_selected_square,
@@ -380,6 +418,7 @@ impl Scene for GameScene {
                                             } else {
                                                 self.selected_square = Some(new_square);
                                                 self.redraw_squares.insert(new_square.clone());
+                                                self.set_move_hints(new_square);
                                             };
                                         }
                                     }
