@@ -116,6 +116,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "chess"
+version = "0.2.0"
+dependencies = [
+ "clap",
+ "downcast-rs",
+ "fxhash",
+ "lazy_static",
+ "libremarkable",
+ "pleco",
+ "rand 0.7.3",
+]
+
+[[package]]
 name = "clap"
 version = "3.0.0-beta.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1010,19 +1023,6 @@ name = "regex-syntax"
 version = "0.6.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26412eb97c6b088a6997e05f69403a802a92d520de2f8e63c2b65f9e0f47c4e8"
-
-[[package]]
-name = "remarkable-chess"
-version = "0.2.0"
-dependencies = [
- "clap",
- "downcast-rs",
- "fxhash",
- "lazy_static",
- "libremarkable",
- "pleco",
- "rand 0.7.3",
-]
 
 [[package]]
 name = "remove_dir_all"
