@@ -24,6 +24,14 @@ pub struct Opts {
         about = "Stop xochitl service when a xochitl process is found. Useful when running without any launcher."
     )]
     kill_xochitl: bool,
+
+    #[clap(
+        long,
+        short = 'd',
+        default_value = "1500",
+        about = "Minimum amount of time, the bots wait before it makes its move in milliseconds"
+    )]
+    bot_reaction_delay: u16,
 }
 
 lazy_static! {

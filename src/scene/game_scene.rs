@@ -1,5 +1,6 @@
 use super::Scene;
 use crate::canvas::*;
+use crate::CLI_OPTS;
 use fxhash::{FxHashMap, FxHashSet};
 use libremarkable::image;
 use libremarkable::input::{gpio, multitouch, multitouch::Finger, InputEvent};
@@ -7,7 +8,7 @@ use pleco::bot_prelude::*;
 use pleco::{BitMove, Board, File, Piece, Rank, SQ};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 lazy_static! {
     // Black set
@@ -292,7 +293,16 @@ impl GameScene {
                     break;
                 }
                 let (board, depth) = job_data.unwrap();
-                job_result.send(Self::do_bot_move(board, depth)).unwrap();
+                let started = SystemTime::now();
+                let bot_move = Self::do_bot_move(board, depth);
+                let elapsed = started.elapsed().unwrap_or(Duration::new(0, 0));
+                let reaction_delay = Duration::from_millis(CLI_OPTS.bot_reaction_delay.into());
+
+                if elapsed < reaction_delay {
+                    thread::sleep(reaction_delay - elapsed);
+                }
+                //let elapsed =
+                job_result.send(bot_move).unwrap();
             })
             .unwrap()
     }
