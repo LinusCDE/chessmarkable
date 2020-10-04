@@ -508,6 +508,7 @@ impl Scene for GameScene {
                                 }
                             }
                         }
+                        self.finger_down_square = None;
                     }
                     _ => {}
                 }
