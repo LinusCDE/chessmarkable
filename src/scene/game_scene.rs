@@ -215,25 +215,33 @@ impl Scene for GameScene {
                                         if Canvas::is_hitting(finger.pos, self.piece_hitboxes[x][y])
                                         {
                                             let new_square = to_square(x, y);
-                                            let mark_selected = if let Some(last_selected_square) =
-                                                self.selected_square
+                                            if let Some(last_selected_square) = self.selected_square
                                             {
-                                                // Update no longer highlighted square
                                                 self.redraw_squares
                                                     .push(last_selected_square.clone());
 
-                                                last_selected_square != new_square
+                                                if last_selected_square == new_square {
+                                                    // Cancel move
+                                                    self.selected_square = None;
+                                                } else {
+                                                    // Move
+                                                    self.selected_square = None;
+                                                    let chess_move = chess::ChessMove::new(
+                                                        last_selected_square,
+                                                        new_square,
+                                                        None,
+                                                    );
+                                                    if self.game.make_move(chess_move) {
+                                                        self.redraw_squares
+                                                            .push(new_square.clone());
+                                                    } else {
+                                                        println!("Invalid move");
+                                                    }
+                                                }
                                             } else {
-                                                true
+                                                self.selected_square = Some(new_square);
+                                                self.redraw_squares.push(new_square.clone());
                                             };
-
-                                            if mark_selected {
-                                                self.selected_square = Some(to_square(x, y));
-                                                self.redraw_squares
-                                                    .push(self.selected_square.unwrap().clone());
-                                            } else {
-                                                self.selected_square = None;
-                                            }
                                         }
                                     }
                                 }
