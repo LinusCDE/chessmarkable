@@ -1,4 +1,4 @@
-name=Chess
+name=chessMarkable
 desc=Chess
-call=/opt/bin/chess
-imgFile=chess
+call=/opt/bin/chessmarkable
+imgFile=chessmarkable

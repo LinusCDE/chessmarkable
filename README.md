@@ -1,10 +1,10 @@
-# Chess
+# chessMarkable
 
 [![rm1](https://img.shields.io/badge/rM1-supported-green)](https://remarkable.com/store/remarkable)
 [![rm2](https://img.shields.io/badge/rM2-unknown-yellow)](https://remarkable.com/store/remarkable-2)
 [![launchers](https://img.shields.io/badge/Launchers-supported-green)](https://github.com/reHackable/awesome-reMarkable#launchers)
 
-<!-- [![opkg](https://img.shields.io/badge/OPKG-chess-blue)](https://github.com/toltec-dev/toltec) -->
+<!-- [![opkg](https://img.shields.io/badge/OPKG-chessmarkable-blue)](https://github.com/toltec-dev/toltec) -->
 <!-- [![Mentioned in Awesome reMarkable](https://awesome.re/mentioned-badge.svg)](https://github.com/reHackable/awesome-reMarkable) -->
 
 A chess game for the reMarkable tablet writting using the [pleco](https://crates.io/crates/pleco) chess library which is a port of [Stockfish](https://stockfishchess.org/)
@@ -24,11 +24,11 @@ The second method has the advantage that it doesn't highlight the chess piece or
 
 ### Prebuilt binary/program
 
-- Go the the [releases page](https://github.com/LinusCDE/chess/releases)
-- Get the newest released "chess" file and copy it onto your remarkable, using e.g. FileZilla, WinSCP or scp.
+- Go the the [releases page](https://github.com/LinusCDE/chessmarkable/releases)
+- Get the newest released binary file (the one without any extension) and copy it onto your remarkable, using e.g. FileZilla, WinSCP or scp.
 - SSH into your remarkable and mark the file as executable with `chmod +x chess`
 - Stop xochitl (the interface) with `systemctl stop xochitl`
-- Start the game with `./chess`
+- Start the game with `./chessmarkable` (or whatever the binary is called now)
 - After you're done, restart xochitl with `systemctl start xochitl`
 
 ### Compiling

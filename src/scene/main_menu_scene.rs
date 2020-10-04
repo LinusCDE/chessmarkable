@@ -77,8 +77,8 @@ impl Scene for MainMenuScene {
                 x: None,
                 y: Some(300),
             },
-            "Chess",
-            400.0,
+            "chessMarkable",
+            150.0,
         );
 
         canvas.draw_text(
