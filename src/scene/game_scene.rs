@@ -4,6 +4,7 @@ use chess::{Color as PieceColor, File, Game, Piece, Rank, Square};
 use fxhash::FxHashMap;
 use libremarkable::image;
 use libremarkable::input::{gpio, multitouch, multitouch::Finger, InputEvent};
+use pleco::bot_prelude::*;
 
 lazy_static! {
     // Black set
@@ -56,8 +57,30 @@ fn to_square(x: usize, y: usize) -> Square {
     Square::make_square(Rank::from_index(y), File::from_index(x))
 }
 
+fn to_chess_move(bit_move: pleco::BitMove) -> chess::ChessMove {
+    let promo = if bit_move.is_promo() {
+        Some(match bit_move.promo_piece() {
+            pleco::PieceType::K => Piece::King,
+            pleco::PieceType::Q => Piece::Queen,
+            pleco::PieceType::B => Piece::Bishop,
+            pleco::PieceType::R => Piece::Rook,
+            pleco::PieceType::N => Piece::Knight,
+            pleco::PieceType::P => Piece::Pawn,
+            _ => panic!("Invalid promo piece!"),
+        })
+    } else {
+        None
+    };
+    chess::ChessMove::new(
+        to_square(bit_move.src_col() as usize, bit_move.src_row() as usize),
+        to_square(bit_move.dest_col() as usize, bit_move.dest_row() as usize),
+        promo,
+    )
+}
+
 pub struct GameScene {
     game: Game,
+    depth: u16,
     first_draw: bool,
     back_button_hitbox: Option<mxcfb_rect>,
     square_size: u32,
@@ -119,6 +142,7 @@ impl GameScene {
         Self {
             game: chess::Game::new(),
             first_draw: true,
+            depth: 0,
             piece_hitboxes,
             square_size,
             selected_square: None,
@@ -196,6 +220,23 @@ impl GameScene {
 
         self.redraw_squares.clear();
     }
+
+    fn do_bot_move(&mut self) {
+        println!("Running bot...");
+        let pleco_board = pleco::Board::from_fen(&self.game.current_position().to_string())
+            .expect("Failed to copy default board to pleco");
+        let bot_bit_move = MiniMaxSearcher::best_move(pleco_board, self.depth);
+        let bot_chess_move = to_chess_move(bot_bit_move);
+        if self.game.make_move(bot_chess_move) {
+            self.redraw_squares.push(bot_chess_move.get_source());
+            self.redraw_squares.push(bot_chess_move.get_dest());
+        } else {
+            panic!("Bot (pleco) made unexpected invalid move according to the \"chess\" lib.");
+        }
+        //println!("Botmove: {}", bot_move);
+        println!("Bot decided");
+        self.depth += 1;
+    }
 }
 
 impl Scene for GameScene {
@@ -234,6 +275,8 @@ impl Scene for GameScene {
                                                     if self.game.make_move(chess_move) {
                                                         self.redraw_squares
                                                             .push(new_square.clone());
+                                                        self.depth += 1;
+                                                        self.do_bot_move();
                                                     } else {
                                                         println!("Invalid move");
                                                     }

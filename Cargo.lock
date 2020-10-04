@@ -632,6 +632,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "mucow"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c55d0c9dc43dedfd2414deb74ade67687749ef88b1d3482024d4c81d901a7a83"
+
+[[package]]
 name = "nix"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -794,6 +800,20 @@ name = "pkg-config"
 version = "0.3.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d36492546b6af1463394d46f0c834346f31548646f6ba10849802c9c9a27ac33"
+
+[[package]]
+name = "pleco"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28a8c8ab569c544644c468a63f4fe4b33c0706b1472bebb517fabb75ec0f688e"
+dependencies = [
+ "bitflags 1.2.1",
+ "lazy_static",
+ "mucow",
+ "num_cpus",
+ "rand 0.6.5",
+ "rayon",
+]
 
 [[package]]
 name = "png"
@@ -1101,6 +1121,7 @@ dependencies = [
  "fxhash",
  "lazy_static",
  "libremarkable",
+ "pleco",
  "rand 0.7.3",
 ]
 
