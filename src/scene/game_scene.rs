@@ -334,7 +334,7 @@ impl GameScene {
                     thread::sleep(reaction_delay - elapsed);
                 }
                 //let elapsed =
-                job_result.send(bot_move).unwrap();
+                job_result.send(bot_move).ok();
             })
             .unwrap()
     }
@@ -411,7 +411,7 @@ impl GameScene {
                         self.current_board.clone(),
                         self.game_mode.clone() as u16,
                     )))
-                    .unwrap();
+                    .ok();
                 self.ignore_user_moves = true;
             }
         }
@@ -421,7 +421,7 @@ impl GameScene {
 impl Drop for GameScene {
     fn drop(&mut self) {
         // Signal bot thread to terminate
-        self.bot_job.send(None).unwrap();
+        self.bot_job.send(None).ok();
         println!("Bot thread should terminate");
     }
 }
