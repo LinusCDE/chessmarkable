@@ -2,11 +2,9 @@
 
 [![rm1](https://img.shields.io/badge/rM1-supported-green)](https://remarkable.com/store/remarkable)
 [![rm2](https://img.shields.io/badge/rM2-unknown-yellow)](https://remarkable.com/store/remarkable-2)
-
-<!-- [![opkg](https://img.shields.io/badge/OPKG-chess-blue)](https://github.com/toltec-dev/toltec) -->
-
 [![launchers](https://img.shields.io/badge/Launchers-supported-green)](https://github.com/reHackable/awesome-reMarkable#launchers)
 
+<!-- [![opkg](https://img.shields.io/badge/OPKG-chess-blue)](https://github.com/toltec-dev/toltec) -->
 <!-- [![Mentioned in Awesome reMarkable](https://awesome.re/mentioned-badge.svg)](https://github.com/reHackable/awesome-reMarkable) -->
 
 A chess game for the reMarkable tablet writting using the [pleco](https://crates.io/crates/pleco) chess library which is a port of [Stockfish](https://stockfishchess.org/)
