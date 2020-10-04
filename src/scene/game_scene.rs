@@ -623,9 +623,6 @@ impl Scene for GameScene {
                 "Checkmate!",
                 100.0,
             );
-            unsafe {
-                self.board.apply_null_move(); // Allow the other to go on
-            }
         }
     }
 }
