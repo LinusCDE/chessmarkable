@@ -58,8 +58,11 @@ lazy_static! {
     static ref IMG_PIECE_MOVEHINT: image::DynamicImage =
         image::load_from_memory(include_bytes!("../../res/piece-move-hint.png"))
             .expect("Failed to load resource as image!");
-    static ref IMG_PIECE_MOVED: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/piece-moved.png"))
+    static ref IMG_PIECE_MOVED_FROM: image::DynamicImage =
+        image::load_from_memory(include_bytes!("../../res/piece-moved-from.png"))
+            .expect("Failed to load resource as image!");
+    static ref IMG_PIECE_MOVED_TO: image::DynamicImage =
+        image::load_from_memory(include_bytes!("../../res/piece-moved-to.png"))
             .expect("Failed to load resource as image!");
 }
 
@@ -138,14 +141,16 @@ pub struct GameScene {
     redraw_all_squares: bool,
     selected_square: Option<SQ>,
     move_hints: FxHashSet<SQ>,
-    last_move: FxHashSet<SQ>,
+    last_move_from: Option<SQ>,
+    last_move_to: Option<SQ>,
     /// Remember a press to decide whether to show options or do a move at once
     finger_down_square: Option<SQ>,
     /// Resized to fit selected_square
     img_pieces: FxHashMap</* Piece */ char, image::DynamicImage>,
     img_piece_selected: image::DynamicImage,
     img_piece_movehint: image::DynamicImage,
-    img_piece_moved: image::DynamicImage,
+    img_piece_moved_from: image::DynamicImage,
+    img_piece_moved_to: image::DynamicImage,
     pub back_button_pressed: bool,
     /// Do a full screen refresh on next draw
     force_full_refresh: Option<SystemTime>,
@@ -196,7 +201,12 @@ impl GameScene {
             square_size - overlay_padding * 2,
             image::FilterType::Lanczos3,
         );
-        let img_piece_moved = IMG_PIECE_MOVED.resize(
+        let img_piece_moved_from = IMG_PIECE_MOVED_FROM.resize(
+            square_size - overlay_padding * 2,
+            square_size - overlay_padding * 2,
+            image::FilterType::Lanczos3,
+        );
+        let img_piece_moved_to = IMG_PIECE_MOVED_TO.resize(
             square_size - overlay_padding * 2,
             square_size - overlay_padding * 2,
             image::FilterType::Lanczos3,
@@ -221,12 +231,14 @@ impl GameScene {
             overlay_padding,
             selected_square: None,
             move_hints: Default::default(),
-            last_move: Default::default(),
+            last_move_from: None,
+            last_move_to: None,
             finger_down_square: None,
             img_pieces,
             img_piece_selected,
             img_piece_movehint,
-            img_piece_moved,
+            img_piece_moved_from,
+            img_piece_moved_to,
             redraw_squares: Default::default(),
             redraw_all_squares: false,
             back_button_hitbox: None,
@@ -279,6 +291,7 @@ impl GameScene {
                         color::GRAY(50)
                     },
                 );
+
                 let piece = self.board.piece_at_sq(square);
                 if piece != Piece::None {
                     // Actual piece here
@@ -321,13 +334,23 @@ impl GameScene {
                 }
 
                 // Also highlight squares from previous move
-                if self.last_move.contains(&square) {
+                if self.last_move_from.is_some() && self.last_move_from.unwrap() == square {
                     canvas.draw_image(
                         Point2 {
                             x: (bounds.left + self.overlay_padding) as i32,
                             y: (bounds.top + self.overlay_padding) as i32,
                         },
-                        &self.img_piece_moved, // TODO use a better image?
+                        &self.img_piece_moved_from, // TODO use a better image?
+                        true,
+                    );
+                }
+                if self.last_move_to.is_some() && self.last_move_to.unwrap() == square {
+                    canvas.draw_image(
+                        Point2 {
+                            x: (bounds.left + self.overlay_padding) as i32,
+                            y: (bounds.top + self.overlay_padding) as i32,
+                        },
+                        &self.img_piece_moved_to, // TODO use a better image?
                         true,
                     );
                 }
@@ -627,13 +650,13 @@ impl Scene for GameScene {
             if let Err(e) = self.try_move(bot_bit_move, true) {
                 panic!("Invalid move by bot: {}", e);
             }
-            for last_move_hint in &self.last_move {
+            for last_move_hint in self.last_move_from.iter().chain(self.last_move_to.iter()) {
                 self.redraw_squares.insert(last_move_hint.clone());
             }
-            self.last_move.clear();
-            self.last_move.insert(bot_bit_move.get_src());
+
+            self.last_move_from = Some(bot_bit_move.get_src());
             self.redraw_squares.insert(bot_bit_move.get_src());
-            self.last_move.insert(bot_bit_move.get_dest());
+            self.last_move_to = Some(bot_bit_move.get_dest());
             self.redraw_squares.insert(bot_bit_move.get_dest());
             println!("Bot moved");
             self.ignore_user_moves = false;
