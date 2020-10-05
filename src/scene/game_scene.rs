@@ -244,7 +244,8 @@ impl GameScene {
         }
     }
 
-    fn draw_board(&mut self, canvas: &mut Canvas) {
+    fn draw_board(&mut self, canvas: &mut Canvas) -> Vec<mxcfb_rect> {
+        let mut updated_regions = vec![];
         for x in 0..8 {
             for y in 0..8 {
                 let square = to_square(x, y); // Flip board so white is at the bottom
@@ -306,11 +307,32 @@ impl GameScene {
                         true,
                     );
                 }
+
+                if !self.redraw_all_squares {
+                    updated_regions.push(bounds.clone());
+                }
             }
+        }
+
+        if self.redraw_all_squares {
+            updated_regions.clear();
+            // Update full board instead of every single position
+            let left = self.piece_hitboxes[0][7].left;
+            let top = self.piece_hitboxes[0][7].top;
+            let right = self.piece_hitboxes[7][0].left + self.piece_hitboxes[7][0].width;
+            let bottom = self.piece_hitboxes[7][0].top + self.piece_hitboxes[7][0].height;
+            updated_regions.push(mxcfb_rect {
+                left,
+                top,
+                width: right - left,
+                height: bottom - top,
+            });
         }
 
         self.redraw_squares.clear();
         self.redraw_all_squares = false;
+
+        updated_regions
     }
 
     fn spawn_bot_thread(
@@ -575,7 +597,7 @@ impl Scene for GameScene {
             canvas.update_full();
             self.first_draw = false;
             // Refresh again after 500ms
-            self.force_full_refresh = Some(SystemTime::now() + Duration::from_millis(500));
+            self.force_full_refresh = Some(SystemTime::now() + Duration::from_millis(250));
         }
 
         // Await bot move
@@ -590,14 +612,10 @@ impl Scene for GameScene {
         }
 
         if self.redraw_all_squares || self.redraw_squares.len() > 0 {
-            self.draw_board(canvas);
+            self.draw_board(canvas)
+                .iter()
+                .for_each(|r| canvas.update_partial(r));
             self.redraw_all_squares = false;
-            canvas.update_partial(&mxcfb_rect {
-                left: 0,
-                top: 0,
-                width: DISPLAYWIDTH.into(),
-                height: DISPLAYHEIGHT.into(),
-            });
         }
 
         if self.force_full_refresh.is_some() && self.force_full_refresh.unwrap() < SystemTime::now()
