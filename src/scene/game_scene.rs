@@ -5,7 +5,7 @@ use fxhash::{FxHashMap, FxHashSet};
 use libremarkable::image;
 use libremarkable::input::{gpio, multitouch, multitouch::Finger, InputEvent};
 use pleco::bot_prelude::*;
-use pleco::{BitMove, Board, File, Piece, Rank, SQ};
+use pleco::{BitMove, Board, File, Piece, Player, Rank, SQ};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::time::{Duration, SystemTime};
@@ -112,6 +112,11 @@ fn to_square(x: usize, y: usize) -> SQ {
     SQ::make(file, rank)
 }
 
+enum GameBottomInfo {
+    GameEnded(String),
+    Info(String),
+}
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum GameMode {
     PvP = 0,
@@ -159,6 +164,10 @@ pub struct GameScene {
     /// Do a full screen refresh on next draw
     force_full_refresh: Option<SystemTime>,
     last_checkmate_check: SystemTime,
+    draw_game_bottom_info: Option<GameBottomInfo>,
+    draw_game_bottom_info_last_rect: Option<mxcfb_rect>,
+    draw_game_bottom_info_clear_at: Option<SystemTime>,
+    is_game_over: bool,
 }
 
 impl GameScene {
@@ -256,6 +265,10 @@ impl GameScene {
             back_button_pressed: false,
             force_full_refresh: None,
             last_checkmate_check: SystemTime::now(),
+            draw_game_bottom_info: None,
+            draw_game_bottom_info_last_rect: None,
+            draw_game_bottom_info_clear_at: None,
+            is_game_over: false,
         }
     }
 
@@ -274,6 +287,34 @@ impl GameScene {
             Piece::WhiteKnight => &IMG_KNIGHT_WHITE,
             Piece::WhitePawn => &IMG_PAWN_WHITE,
             Piece::None => panic!("Cannot get img for Piece::None"),
+        }
+    }
+
+    fn check_game_over(&mut self) {
+        if self.board.checkmate() {
+            if self.is_game_over {
+                return; // This is not new
+            }
+
+            let looser = match self.board.turn() {
+                Player::Black => "White",
+                Player::White => "Black",
+            };
+            self.draw_game_bottom_info = Some(GameBottomInfo::GameEnded(format!(
+                "{} is checkmated!",
+                looser
+            )));
+            self.is_game_over = true;
+        } else if self.board.stalemate() {
+            if self.is_game_over {
+                return; // This is not new
+            }
+
+            self.draw_game_bottom_info = Some(GameBottomInfo::GameEnded("Stalemate!".to_owned()));
+            self.is_game_over = true;
+        } else if self.is_game_over {
+            // Probably undone a move. Is not gameover anymore
+            self.is_game_over = false;
         }
     }
 
@@ -378,24 +419,28 @@ impl GameScene {
         }
 
         if self.redraw_all_squares || !CLI_OPTS.no_merge {
-            updated_regions.clear();
             // Update full board instead of every single position
-            let left = self.piece_hitboxes[0][7].left;
-            let top = self.piece_hitboxes[0][7].top;
-            let right = self.piece_hitboxes[7][0].left + self.piece_hitboxes[7][0].width;
-            let bottom = self.piece_hitboxes[7][0].top + self.piece_hitboxes[7][0].height;
-            updated_regions.push(mxcfb_rect {
-                left,
-                top,
-                width: right - left,
-                height: bottom - top,
-            });
+            updated_regions.clear();
+            updated_regions.push(self.full_board_rect());
         }
 
         self.redraw_squares.clear();
         self.redraw_all_squares = false;
 
         updated_regions
+    }
+
+    fn full_board_rect(&self) -> mxcfb_rect {
+        let left = self.piece_hitboxes[0][7].left;
+        let top = self.piece_hitboxes[0][7].top;
+        let right = self.piece_hitboxes[7][0].left + self.piece_hitboxes[7][0].width;
+        let bottom = self.piece_hitboxes[7][0].top + self.piece_hitboxes[7][0].height;
+        mxcfb_rect {
+            left,
+            top,
+            width: right - left,
+            height: bottom - top,
+        }
     }
 
     fn spawn_bot_thread(
@@ -452,13 +497,11 @@ impl GameScene {
         };
 
         if bit_move.get_src() == bit_move.get_dest() {
-            // This would bite us because of assertions elsewhere in pleco
-            // Replace with null move
-            warn!("Invalid non-moving move found. Doing null move instead.");
-            unsafe {
-                self.board.apply_null_move();
+            if bit_move.is_null() {
+                return Err("Move is a null move that doesn't actually move (this may be a sign for having given up).".to_owned());
+            } else {
+                return Err("Move does not actually move (not a null move though).".to_owned());
             }
-            return Ok(());
         }
 
         self.board.apply_move(selected_move);
@@ -470,13 +513,13 @@ impl GameScene {
                 e
             ));
         }
-
         // Moves that can change more than just src and dest
         if selected_move.is_castle() || selected_move.is_en_passant() {
             // Is en passant even affecting more than dest and src ??
             self.redraw_all_squares = true;
         }
 
+        self.check_game_over();
         Ok(())
     }
 
@@ -518,12 +561,14 @@ impl GameScene {
                 self.redraw_squares.insert(self.last_move_to.unwrap());
                 self.last_move_to = None;
             }
-            // Task bot to do a move
-            if self.game_mode != GameMode::PvP {
-                self.bot_job
-                    .send(Some((self.board.clone(), self.game_mode.clone() as u16)))
-                    .ok();
-                self.ignore_user_moves = true;
+            if !self.is_game_over {
+                // Task bot to do a move
+                if self.game_mode != GameMode::PvP {
+                    self.bot_job
+                        .send(Some((self.board.clone(), self.game_mode.clone() as u16)))
+                        .ok();
+                    self.ignore_user_moves = true;
+                }
             }
         }
     }
@@ -552,6 +597,9 @@ impl GameScene {
         }
         self.remove_last_moved_hints();
         self.redraw_all_squares = true;
+        if self.draw_game_bottom_info_last_rect.is_some() {
+            self.draw_game_bottom_info_clear_at = Some(SystemTime::now());
+        }
         Ok(())
     }
 }
@@ -588,16 +636,23 @@ impl Scene for GameScene {
                         if self.undo_button_hitbox.is_some()
                             && Canvas::is_hitting(finger.pos, self.undo_button_hitbox.unwrap())
                         {
-                            if self.game_mode == GameMode::PvP {
-                                if let Err(e) = self.try_undo(1) {
-                                    error!("Undoing last move failed: {}", e);
-                                }
-                            } else if !self.ignore_user_moves {
-                                if let Err(e) = self.try_undo(2) {
-                                    error!("Undoing last bot and player move failed: {}", e);
-                                }
-                            } else {
+                            if self.ignore_user_moves {
                                 warn!("Can't undo while player is supposed to play (bot is probably playing)");
+                            } else {
+                                let undo_count = if self.game_mode == GameMode::PvP {
+                                    1
+                                } else {
+                                    if self.board.turn() == Player::Black {
+                                        1
+                                    } else {
+                                        2
+                                    }
+                                };
+                                if let Err(e) = self.try_undo(undo_count) {
+                                    error!("Undoing last move failed: {}", e);
+                                } else {
+                                    self.check_game_over(); // May have reverted game over
+                                }
                             }
                         }
                         if self.full_refresh_button_hitbox.is_some()
@@ -607,7 +662,7 @@ impl Scene for GameScene {
                             )
                         {
                             self.force_full_refresh = Some(SystemTime::now());
-                        } else if !self.ignore_user_moves {
+                        } else if !self.ignore_user_moves && !self.is_game_over {
                             for x in 0..8 {
                                 for y in 0..8 {
                                     if Canvas::is_hitting(finger.pos, self.piece_hitboxes[x][y]) {
@@ -706,7 +761,7 @@ impl Scene for GameScene {
             self.force_full_refresh = Some(SystemTime::now() + Duration::from_millis(250));
         }
 
-        // Await bot move
+        // Apply bot move
         if let Ok(bot_bit_move) = self.bot_move.try_recv() {
             self.remove_last_moved_hints();
             // Wait till board got refresh with all changes until now
@@ -718,19 +773,25 @@ impl Scene for GameScene {
                 .for_each(|marker| canvas.wait_for_update(*marker));
 
             // Add bot move to board
-            if let Err(e) = self.try_move(bot_bit_move, true) {
-                panic!("Invalid move by bot: {}", e);
-            }
+            if !bot_bit_move.is_null() {
+                if let Err(e) = self.try_move(bot_bit_move, true) {
+                    panic!("Invalid move by bot: {}", e);
+                }
 
-            // Add new moved hints
-            self.last_move_from = Some(bot_bit_move.get_src());
-            self.redraw_squares.insert(bot_bit_move.get_src());
-            self.last_move_to = Some(bot_bit_move.get_dest());
-            self.redraw_squares.insert(bot_bit_move.get_dest());
-            debug!("Bot moved");
+                // Add new moved hints
+                self.last_move_from = Some(bot_bit_move.get_src());
+                self.redraw_squares.insert(bot_bit_move.get_src());
+                self.last_move_to = Some(bot_bit_move.get_dest());
+                self.redraw_squares.insert(bot_bit_move.get_dest());
+                debug!("Bot moved");
+            } else {
+                debug!("Bot didn't want to move")
+                // A bit below will be checked for proper ending in this case
+            }
             self.ignore_user_moves = false;
         }
 
+        // Update board
         if self.redraw_all_squares || self.redraw_squares.len() > 0 {
             self.draw_board(canvas).iter().for_each(|r| {
                 canvas.update_partial(r);
@@ -738,30 +799,65 @@ impl Scene for GameScene {
             self.redraw_all_squares = false;
         }
 
+        // Do forced refresh on request
         if self.force_full_refresh.is_some() && self.force_full_refresh.unwrap() < SystemTime::now()
         {
             canvas.update_full();
             self.force_full_refresh = None;
         }
 
-        // Check periodicially for checkmate.
-        // The function pleco::Board::checkmate() is supposed to be compuationally
-        // expensive. I measured 2-3us at the beginning on the rM1 but who knows.
-        // This more a compromize between development speed and correctness.
-        let checkmate_check_elapsed = self.last_checkmate_check.elapsed();
-        if checkmate_check_elapsed.is_ok()
-            && checkmate_check_elapsed.unwrap() > Duration::from_millis(3000)
-            && self.board.checkmate()
+        // Clear previous text when changed or expired
+        if self.draw_game_bottom_info.is_some()
+            || (self.draw_game_bottom_info_clear_at.is_some()
+                && self.draw_game_bottom_info_clear_at.unwrap() <= SystemTime::now())
         {
-            self.last_checkmate_check = SystemTime::now();
-            canvas.draw_text(
-                Point2 {
-                    x: None,
-                    y: Some(DISPLAYHEIGHT as i32 - 100),
-                },
-                "Checkmate!",
-                100.0,
-            );
+            // Clear any previous text
+            if let Some(ref last_rect) = self.draw_game_bottom_info_last_rect {
+                canvas.fill_rect(
+                    Point2 {
+                        x: Some(last_rect.left as i32),
+                        y: Some(last_rect.top as i32),
+                    },
+                    Vector2 {
+                        x: last_rect.width,
+                        y: last_rect.height,
+                    },
+                    color::WHITE,
+                );
+                canvas.update_partial(last_rect);
+                self.draw_game_bottom_info_last_rect = None;
+            }
+        }
+
+        // Draw a requested text once
+        if let Some(ref game_bottom_info) = self.draw_game_bottom_info {
+            // Old text was cleared above already
+
+            let rect = match game_bottom_info {
+                GameBottomInfo::GameEnded(ref short_message) => canvas.draw_text(
+                    Point2 {
+                        x: None,
+                        y: Some(DISPLAYHEIGHT as i32 - 100),
+                    },
+                    short_message,
+                    100.0,
+                ),
+                GameBottomInfo::Info(ref message) => {
+                    let board_rect = self.full_board_rect();
+                    let y = board_rect.top + board_rect.height;
+                    canvas.draw_text(
+                        Point2 {
+                            x: None,
+                            y: Some(y as i32 + 50),
+                        },
+                        message,
+                        50.0,
+                    )
+                }
+            };
+            canvas.update_partial(&rect);
+            self.draw_game_bottom_info_last_rect = Some(rect);
+            self.draw_game_bottom_info = None;
         }
     }
 }
