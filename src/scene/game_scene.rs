@@ -11,6 +11,14 @@ use std::thread;
 use std::time::{Duration, SystemTime};
 
 lazy_static! {
+    // Underlays / Background layers
+    static ref IMG_PIECE_MOVED_FROM: image::DynamicImage =
+        image::load_from_memory(include_bytes!("../../res/piece-moved-from.png"))
+            .expect("Failed to load resource as image!");
+    static ref IMG_PIECE_MOVED_TO: image::DynamicImage =
+        image::load_from_memory(include_bytes!("../../res/piece-moved-to.png"))
+            .expect("Failed to load resource as image!");
+
     // Black set
     static ref IMG_KING_BLACK: image::DynamicImage =
         image::load_from_memory(include_bytes!("../../res/king-black.png"))
@@ -51,18 +59,12 @@ lazy_static! {
         image::load_from_memory(include_bytes!("../../res/pawn-white.png"))
             .expect("Failed to load resource as image!");
 
-    // Additional overlays
+    // Overlays
     static ref IMG_PIECE_SELECTED: image::DynamicImage =
         image::load_from_memory(include_bytes!("../../res/piece-selected.png"))
             .expect("Failed to load resource as image!");
     static ref IMG_PIECE_MOVEHINT: image::DynamicImage =
         image::load_from_memory(include_bytes!("../../res/piece-move-hint.png"))
-            .expect("Failed to load resource as image!");
-    static ref IMG_PIECE_MOVED_FROM: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/piece-moved-from.png"))
-            .expect("Failed to load resource as image!");
-    static ref IMG_PIECE_MOVED_TO: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/piece-moved-to.png"))
             .expect("Failed to load resource as image!");
 }
 
@@ -130,27 +132,27 @@ pub struct GameScene {
     back_button_hitbox: Option<mxcfb_rect>,
     undo_button_hitbox: Option<mxcfb_rect>,
     full_refresh_button_hitbox: Option<mxcfb_rect>,
-    square_size: u32,
-    piece_padding: u32,
-    overlay_padding: u32,
     piece_hitboxes: Vec<Vec<mxcfb_rect>>,
     /// The squared that were visually affected and should be redrawn
     redraw_squares: FxHashSet<SQ>,
     /// If the amount of changes squares cannot be easily decided this
     /// is a easy way to update everything. Has a performance hit though.
     redraw_all_squares: bool,
+    /// Resized to fit selected_square
+    square_size: u32,
+    img_piece_moved_from: image::DynamicImage,
+    img_piece_moved_to: image::DynamicImage,
+    piece_padding: u32,
+    img_pieces: FxHashMap</* Piece */ char, image::DynamicImage>,
+    overlay_padding: u32,
+    img_piece_selected: image::DynamicImage,
+    img_piece_movehint: image::DynamicImage,
     selected_square: Option<SQ>,
     move_hints: FxHashSet<SQ>,
     last_move_from: Option<SQ>,
     last_move_to: Option<SQ>,
     /// Remember a press to decide whether to show options or do a move at once
     finger_down_square: Option<SQ>,
-    /// Resized to fit selected_square
-    img_pieces: FxHashMap</* Piece */ char, image::DynamicImage>,
-    img_piece_selected: image::DynamicImage,
-    img_piece_movehint: image::DynamicImage,
-    img_piece_moved_from: image::DynamicImage,
-    img_piece_moved_to: image::DynamicImage,
     pub back_button_pressed: bool,
     /// Do a full screen refresh on next draw
     force_full_refresh: Option<SystemTime>,
@@ -201,16 +203,10 @@ impl GameScene {
             square_size - overlay_padding * 2,
             image::FilterType::Lanczos3,
         );
-        let img_piece_moved_from = IMG_PIECE_MOVED_FROM.resize(
-            square_size - overlay_padding * 2,
-            square_size - overlay_padding * 2,
-            image::FilterType::Lanczos3,
-        );
-        let img_piece_moved_to = IMG_PIECE_MOVED_TO.resize(
-            square_size - overlay_padding * 2,
-            square_size - overlay_padding * 2,
-            image::FilterType::Lanczos3,
-        );
+        let img_piece_moved_from =
+            IMG_PIECE_MOVED_FROM.resize(square_size, square_size, image::FilterType::Lanczos3);
+        let img_piece_moved_to =
+            IMG_PIECE_MOVED_TO.resize(square_size, square_size, image::FilterType::Lanczos3);
 
         let (bot_job_tx, bot_job_rx) = channel();
         let (bot_move_tx, bot_move_rx) = channel();
@@ -277,6 +273,9 @@ impl GameScene {
                     continue;
                 }
 
+                //
+                // Square background color
+                //
                 let is_bright_bg = x % 2 == y % 2;
                 let bounds = &self.piece_hitboxes[x][y];
                 canvas.fill_rect(
@@ -292,6 +291,28 @@ impl GameScene {
                     },
                 );
 
+                //
+                // Underlay / Background layers
+                //
+                // Also highlight squares from previous move
+                if self.last_move_from.is_some() && self.last_move_from.unwrap() == square {
+                    canvas.draw_image(
+                        bounds.top_left().cast().unwrap(),
+                        &self.img_piece_moved_from,
+                        true,
+                    );
+                }
+                if self.last_move_to.is_some() && self.last_move_to.unwrap() == square {
+                    canvas.draw_image(
+                        bounds.top_left().cast().unwrap(),
+                        &self.img_piece_moved_to,
+                        true,
+                    );
+                }
+
+                //
+                // Piece
+                //
                 let piece = self.board.piece_at_sq(square);
                 if piece != Piece::None {
                     // Actual piece here
@@ -307,21 +328,27 @@ impl GameScene {
                         &piece_img,
                         true,
                     );
-
-                    // Overlay image if square is selected
-                    if self.selected_square.is_some() && self.selected_square.unwrap() == square {
-                        canvas.draw_image(
-                            Point2 {
-                                x: (bounds.left + self.overlay_padding) as i32,
-                                y: (bounds.top + self.overlay_padding) as i32,
-                            },
-                            &self.img_piece_selected,
-                            true,
-                        );
-                    }
                 }
 
+                //
+                // Overlay
+                //
                 // Overlay image if square is selected
+                if piece != Piece::None
+                    && self.selected_square.is_some()
+                    && self.selected_square.unwrap() == square
+                {
+                    canvas.draw_image(
+                        Point2 {
+                            x: (bounds.left + self.overlay_padding) as i32,
+                            y: (bounds.top + self.overlay_padding) as i32,
+                        },
+                        &self.img_piece_selected,
+                        true,
+                    );
+                }
+
+                // Display postions a selected chess piece could move to
                 if self.move_hints.contains(&square) {
                     canvas.draw_image(
                         Point2 {
@@ -329,28 +356,6 @@ impl GameScene {
                             y: (bounds.top + self.overlay_padding) as i32,
                         },
                         &self.img_piece_movehint,
-                        true,
-                    );
-                }
-
-                // Also highlight squares from previous move
-                if self.last_move_from.is_some() && self.last_move_from.unwrap() == square {
-                    canvas.draw_image(
-                        Point2 {
-                            x: (bounds.left + self.overlay_padding) as i32,
-                            y: (bounds.top + self.overlay_padding) as i32,
-                        },
-                        &self.img_piece_moved_from, // TODO use a better image?
-                        true,
-                    );
-                }
-                if self.last_move_to.is_some() && self.last_move_to.unwrap() == square {
-                    canvas.draw_image(
-                        Point2 {
-                            x: (bounds.left + self.overlay_padding) as i32,
-                            y: (bounds.top + self.overlay_padding) as i32,
-                        },
-                        &self.img_piece_moved_to, // TODO use a better image?
                         true,
                     );
                 }
