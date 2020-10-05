@@ -123,6 +123,8 @@ pub enum GameMode {
 
 pub struct GameScene {
     board: Board,
+    /// May be above zero when a fen was imported. Used to prevent panic on undo.
+    board_moves_played_offset: u16,
     game_mode: GameMode,
     first_draw: bool,
     /// Likely because it's currently the turn of the bot
@@ -225,6 +227,7 @@ impl GameScene {
         };
 
         Self {
+            board_moves_played_offset: board.moves_played(),
             board,
             first_draw: true,
             bot_job: bot_job_tx,
@@ -529,6 +532,25 @@ impl GameScene {
         self.last_move_from = None;
         self.last_move_to = None;
     }
+
+    fn try_undo(&mut self, count: u16) -> Result<(), String> {
+        if count > self.board.moves_played() {
+            return Err(format!(
+                "Can't undo {} moves as that rewind to before the game started.",
+                count
+            ));
+        }
+        if count > self.board.moves_played() - self.board_moves_played_offset {
+            return Err(format!("Can't undo {} moves as the board was probably imported from a FEN which doesn't preserve the moves.", count));
+        }
+
+        for _ in 0..count {
+            self.board.undo_move();
+        }
+        self.remove_last_moved_hints();
+        self.redraw_all_squares = true;
+        Ok(())
+    }
 }
 
 impl Drop for GameScene {
@@ -564,16 +586,15 @@ impl Scene for GameScene {
                             && Canvas::is_hitting(finger.pos, self.undo_button_hitbox.unwrap())
                         {
                             if self.game_mode == GameMode::PvP {
-                                if self.board.moves_played() >= 1 {
-                                    self.board.undo_move();
-                                    self.remove_last_moved_hints();
-                                    self.redraw_all_squares = true;
+                                if let Err(e) = self.try_undo(1) {
+                                    error!("Undoing last move failed: {}", e);
                                 }
-                            } else if !self.ignore_user_moves && self.board.moves_played() >= 2 {
-                                self.board.undo_move(); // Bots move
-                                self.board.undo_move(); // Players move
-                                self.remove_last_moved_hints();
-                                self.redraw_all_squares = true;
+                            } else if !self.ignore_user_moves {
+                                if let Err(e) = self.try_undo(2) {
+                                    error!("Undoing last bot and player move failed: {}", e);
+                                }
+                            } else {
+                                warn!("Can't undo while player is supposed to play (bot is probably playing)");
                             }
                         }
                         if self.full_refresh_button_hitbox.is_some()
