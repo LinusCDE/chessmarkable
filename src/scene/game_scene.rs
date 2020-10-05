@@ -265,7 +265,7 @@ impl GameScene {
             back_button_pressed: false,
             force_full_refresh: None,
             last_checkmate_check: SystemTime::now(),
-            draw_game_bottom_info: None,
+            draw_game_bottom_info: Some(GameBottomInfo::Info("White starts".to_owned())),
             draw_game_bottom_info_last_rect: None,
             draw_game_bottom_info_clear_at: None,
             is_game_over: false,
@@ -520,6 +520,33 @@ impl GameScene {
         }
 
         self.check_game_over();
+        if !self.is_game_over {
+            match self.board.turn() {
+                Player::White => {
+                    let text = if self.game_mode == GameMode::PvP {
+                        "It's white's turn.".to_owned()
+                    } else {
+                        "It's your turn.".to_owned()
+                    };
+                    self.draw_game_bottom_info = Some(GameBottomInfo::Info(text));
+                    self.draw_game_bottom_info_clear_at = None;
+                }
+                Player::Black => {
+                    if self.game_mode == GameMode::PvP {
+                        self.draw_game_bottom_info =
+                            Some(GameBottomInfo::Info("It's black's turn.".to_owned()));
+                        self.draw_game_bottom_info_clear_at = None;
+                    } else {
+                        if self.draw_game_bottom_info_last_rect.is_some() {
+                            // If the bot delay is low, there is no point in removing and
+                            // readding the same text rapidly.
+                            self.draw_game_bottom_info_clear_at =
+                                Some(SystemTime::now() + Duration::from_millis(200));
+                        }
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
@@ -548,6 +575,9 @@ impl GameScene {
         let bit_move = BitMove::make(0, src, dest);
 
         if let Err(e) = self.try_move(bit_move, false) {
+            self.draw_game_bottom_info = Some(GameBottomInfo::Info(format!("Invalid move: {}", e)));
+            self.draw_game_bottom_info_clear_at =
+                Some(SystemTime::now() + Duration::from_millis(3000));
             warn!("Invalid user move: {}", e);
         } else {
             self.redraw_squares.insert(dest.clone());
@@ -842,18 +872,14 @@ impl Scene for GameScene {
                     short_message,
                     100.0,
                 ),
-                GameBottomInfo::Info(ref message) => {
-                    let board_rect = self.full_board_rect();
-                    let y = board_rect.top + board_rect.height;
-                    canvas.draw_text(
-                        Point2 {
-                            x: None,
-                            y: Some(y as i32 + 50),
-                        },
-                        message,
-                        50.0,
-                    )
-                }
+                GameBottomInfo::Info(ref message) => canvas.draw_text(
+                    Point2 {
+                        x: None,
+                        y: Some(DISPLAYHEIGHT as i32 - 20),
+                    },
+                    message,
+                    50.0,
+                ),
             };
             canvas.update_partial(&rect);
             self.draw_game_bottom_info_last_rect = Some(rect);
