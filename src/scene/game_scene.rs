@@ -617,16 +617,8 @@ impl GameScene {
             )
         } else {
             self.redraw_squares.insert(dest.clone());
+            self.clear_last_moved_hints();
 
-            // Remove last moved image when user moved onto one
-            if self.last_move_from.is_some() && self.last_move_from.unwrap() == dest {
-                self.redraw_squares.insert(self.last_move_from.unwrap());
-                self.last_move_from = None;
-            }
-            if self.last_move_to.is_some() && self.last_move_to.unwrap() == dest {
-                self.redraw_squares.insert(self.last_move_to.unwrap());
-                self.last_move_to = None;
-            }
             if !self.is_game_over {
                 // Task bot to do a move
                 if self.game_mode != GameMode::PvP {
@@ -639,7 +631,7 @@ impl GameScene {
         }
     }
 
-    fn remove_last_moved_hints(&mut self) {
+    fn clear_last_moved_hints(&mut self) {
         for last_move_hint in self.last_move_from.iter().chain(self.last_move_to.iter()) {
             self.redraw_squares.insert(last_move_hint.clone());
         }
@@ -661,7 +653,7 @@ impl GameScene {
         for _ in 0..count {
             self.board.undo_move();
         }
-        self.remove_last_moved_hints();
+        self.clear_last_moved_hints();
         self.redraw_all_squares = true;
         self.clear_bottom_game_info();
         Ok(())
@@ -827,7 +819,7 @@ impl Scene for GameScene {
 
         // Apply bot move
         if let Ok(bot_bit_move) = self.bot_move.try_recv() {
-            self.remove_last_moved_hints();
+            self.clear_last_moved_hints();
             // Wait till board got refresh with all changes until now
             self.draw_board(canvas)
                 .iter()
