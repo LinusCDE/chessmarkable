@@ -188,7 +188,7 @@ impl GameScene {
         for piece in ALL_PIECES.iter() {
             img_pieces.insert(
                 piece.character_lossy(),
-                Self::get_orig_pice_img(piece).resize(
+                Self::get_orig_piece_img(piece).resize(
                     square_size - piece_padding * 2,
                     square_size - piece_padding * 2,
                     image::FilterType::Lanczos3,
@@ -259,7 +259,7 @@ impl GameScene {
         }
     }
 
-    fn get_orig_pice_img(piece: &Piece) -> &'static image::DynamicImage {
+    fn get_orig_piece_img(piece: &Piece) -> &'static image::DynamicImage {
         match *piece {
             Piece::BlackKing => &IMG_KING_BLACK,
             Piece::BlackQueen => &IMG_QUEEN_BLACK,
