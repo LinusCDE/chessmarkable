@@ -435,6 +435,13 @@ impl GameScene {
         Ok(())
     }
 
+    fn clear_last_move(&mut self) {
+        for last_move_hint in &self.last_move {
+            self.redraw_squares.insert(last_move_hint.clone());
+        }
+        self.last_move.clear();
+    }
+
     fn clear_move_hints(&mut self) {
         for last_move_hint in &self.move_hints {
             self.redraw_squares.insert(last_move_hint.clone());
@@ -461,6 +468,9 @@ impl GameScene {
         if let Err(e) = self.try_move(bit_move, false) {
             println!("Invalid move: {}", e);
         } else {
+            self.clear_last_move();
+            self.last_move.insert(src);
+            self.last_move.insert(dest);
             self.redraw_squares.insert(dest.clone());
             // Task bot to do a move
             if self.game_mode != GameMode::PvP {
@@ -627,10 +637,7 @@ impl Scene for GameScene {
             if let Err(e) = self.try_move(bot_bit_move, true) {
                 panic!("Invalid move by bot: {}", e);
             }
-            for last_move_hint in &self.last_move {
-                self.redraw_squares.insert(last_move_hint.clone());
-            }
-            self.last_move.clear();
+            self.clear_last_move();
             self.last_move.insert(bot_bit_move.get_src());
             self.redraw_squares.insert(bot_bit_move.get_src());
             self.last_move.insert(bot_bit_move.get_dest());
