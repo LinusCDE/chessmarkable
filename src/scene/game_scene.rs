@@ -214,8 +214,18 @@ impl GameScene {
             Self::spawn_bot_thread(bot_job_rx, bot_move_tx);
         }
 
+        let board = if let Some(ref fen) = CLI_OPTS.intial_fen {
+            if fen.is_empty() {
+                Board::default()
+            } else {
+                Board::from_fen(fen).expect("Failed to load board from supplied FEN")
+            }
+        } else {
+            Board::default()
+        };
+
         Self {
-            board: Default::default(),
+            board,
             first_draw: true,
             bot_job: bot_job_tx,
             bot_move: bot_move_rx,
@@ -449,9 +459,10 @@ impl GameScene {
         }
 
         self.board.apply_move(selected_move);
+        debug!("Board after newest move (FEN): \"{}\"", self.board.fen());
         if let Err(e) = self.board.is_okay() {
             self.board.undo_move();
-            return Err(format!("Board got into illegal state after move: {:?}", e));
+            return Err(format!("Updated board (FEN): {:?}", e));
         }
 
         // Moves that can change more than just src and dest

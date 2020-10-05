@@ -42,6 +42,13 @@ pub struct Opts {
         about = "Disable merging individual field updates into one big partial draw"
     )]
     no_merge: bool,
+
+    #[clap(
+        long,
+        short,
+        about = "FEN used for the initial board instead of the default postions. You can get the fen of a game by setting env RUST_LOG=debug"
+    )]
+    intial_fen: Option<String>,
 }
 
 lazy_static! {
