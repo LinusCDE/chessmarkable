@@ -2,6 +2,8 @@
 extern crate downcast_rs;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate log;
 
 mod canvas;
 mod scene;
@@ -11,6 +13,7 @@ use crate::scene::*;
 use clap::{crate_authors, crate_version, Clap};
 use lazy_static::lazy_static;
 use libremarkable::input::{ev::EvDevContext, InputDevice, InputEvent};
+use std::env;
 use std::process::Command;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime};
@@ -46,6 +49,11 @@ lazy_static! {
 }
 
 fn main() {
+    if env::var("RUST_LOG").is_err() {
+        env::set_var("RUST_LOG", "INFO");
+    }
+    env_logger::init();
+
     let only_exit_to_xochitl = if !CLI_OPTS.kill_xochitl {
         false
     } else if let Ok(status) = Command::new("pidof").arg("xochitl").status() {
@@ -55,7 +63,7 @@ fn main() {
                 .arg("xochitl")
                 .status()
                 .ok();
-            println!("Xochitl was found and killed. You may only exit by starting Xochitl again.");
+            info!("Xochitl was found and killed. You may only exit by starting Xochitl again.");
             true
         } else {
             false

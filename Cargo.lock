@@ -121,9 +121,11 @@ version = "0.3.3"
 dependencies = [
  "clap",
  "downcast-rs",
+ "env_logger",
  "fxhash",
  "lazy_static",
  "libremarkable",
+ "log",
  "pleco",
  "rand 0.7.3",
 ]

@@ -395,7 +395,7 @@ impl GameScene {
                 let job_data = job.recv().unwrap();
                 if job_data.is_none() {
                     // Abort requested
-                    println!("Bot thread is terminating");
+                    info!("Bot thread is terminating");
                     break;
                 }
                 let (board, depth) = job_data.unwrap();
@@ -414,7 +414,7 @@ impl GameScene {
     }
 
     fn do_bot_move(board: Board, depth: u16) -> BitMove {
-        println!("Bot is working...");
+        debug!("Bot is working...");
         //let depth = board.depth() + 1; // Should probably be this
         let bot_bit_move = JamboreeSearcher::best_move(board, depth);
         bot_bit_move
@@ -441,7 +441,7 @@ impl GameScene {
         if bit_move.get_src() == bit_move.get_dest() {
             // This would bite us because of assertions elsewhere in pleco
             // Replace with null move
-            println!("Invalid non-moving move found. Doing null move instead.");
+            warn!("Invalid non-moving move found. Doing null move instead.");
             unsafe {
                 self.board.apply_null_move();
             }
@@ -488,7 +488,7 @@ impl GameScene {
         let bit_move = BitMove::make(0, src, dest);
 
         if let Err(e) = self.try_move(bit_move, false) {
-            println!("Invalid move: {}", e);
+            warn!("Invalid user move: {}", e);
         } else {
             self.redraw_squares.insert(dest.clone());
 
@@ -515,8 +515,8 @@ impl GameScene {
 impl Drop for GameScene {
     fn drop(&mut self) {
         // Signal bot thread to terminate
+        debug!("Bot thread should terminate");
         self.bot_job.send(None).ok();
-        println!("Bot thread should terminate");
     }
 }
 
@@ -688,7 +688,7 @@ impl Scene for GameScene {
             self.redraw_squares.insert(bot_bit_move.get_src());
             self.last_move_to = Some(bot_bit_move.get_dest());
             self.redraw_squares.insert(bot_bit_move.get_dest());
-            println!("Bot moved");
+            debug!("Bot moved");
             self.ignore_user_moves = false;
         }
 
