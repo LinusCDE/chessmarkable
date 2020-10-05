@@ -308,13 +308,11 @@ impl GameScene {
                     );
                 }
 
-                if !self.redraw_all_squares {
-                    updated_regions.push(bounds.clone());
-                }
+                updated_regions.push(bounds.clone());
             }
         }
 
-        if self.redraw_all_squares {
+        if self.redraw_all_squares || !CLI_OPTS.no_merge {
             updated_regions.clear();
             // Update full board instead of every single position
             let left = self.piece_hitboxes[0][7].left;

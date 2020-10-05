@@ -32,6 +32,13 @@ pub struct Opts {
         about = "Minimum amount of time, the bots wait before it makes its move in milliseconds"
     )]
     bot_reaction_delay: u16,
+
+    #[clap(
+        long,
+        short = 'M',
+        about = "Disable merging individual field updates into one big partial draw"
+    )]
+    no_merge: bool,
 }
 
 lazy_static! {
