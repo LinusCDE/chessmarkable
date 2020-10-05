@@ -110,9 +110,9 @@ fn to_square(x: usize, y: usize) -> SQ {
 #[derive(Clone, Copy, PartialEq)]
 pub enum GameMode {
     PvP = 0,
-    EasyBot = 1,
-    NormalBot = 2,
-    HardBot = 4,
+    EasyBot = 2,
+    NormalBot = 4,
+    HardBot = 6,
     // Could go up to about 8-10 (depending on the algo) before getting too slow. But probably fairly unbeatable then.
 }
 
@@ -388,7 +388,7 @@ impl GameScene {
     fn do_bot_move(board: Board, depth: u16) -> BitMove {
         println!("Bot is working...");
         //let depth = board.depth() + 1; // Should probably be this
-        let bot_bit_move = JamboreeSearcher::best_move(board, depth);
+        let bot_bit_move = AlphaBetaSearcher::best_move(board, depth);
         bot_bit_move
     }
 
