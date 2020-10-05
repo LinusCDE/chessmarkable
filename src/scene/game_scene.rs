@@ -464,7 +464,7 @@ impl GameScene {
         self.board.apply_move(selected_move);
         debug!("Updated board (FEN): \"{}\"", self.board.fen());
         if let Err(e) = self.board.is_okay() {
-            self.board.undo_move();
+            self.try_undo(1)?;
             return Err(format!(
                 "Board got into illegal state after move (FEN): {:?}",
                 e
