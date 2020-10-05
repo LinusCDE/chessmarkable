@@ -658,13 +658,27 @@ impl Scene for GameScene {
 
         // Await bot move
         if let Ok(bot_bit_move) = self.bot_move.try_recv() {
-            if let Err(e) = self.try_move(bot_bit_move, true) {
-                panic!("Invalid move by bot: {}", e);
-            }
+            // Remove last moved hints
             for last_move_hint in self.last_move_from.iter().chain(self.last_move_to.iter()) {
                 self.redraw_squares.insert(last_move_hint.clone());
             }
+            self.last_move_from = None;
+            self.last_move_to = None;
 
+            // Wait till board got refresh with all changes until now
+            self.draw_board(canvas)
+                .iter()
+                .map(|rect| canvas.update_partial(rect))
+                .collect::<Vec<u32>>() // Prevent two closures using the canvas by buffering here
+                .iter()
+                .for_each(|marker| canvas.wait_for_update(*marker));
+
+            // Add bot move to board
+            if let Err(e) = self.try_move(bot_bit_move, true) {
+                panic!("Invalid move by bot: {}", e);
+            }
+
+            // Add new moved hints
             self.last_move_from = Some(bot_bit_move.get_src());
             self.redraw_squares.insert(bot_bit_move.get_src());
             self.last_move_to = Some(bot_bit_move.get_dest());
@@ -674,9 +688,9 @@ impl Scene for GameScene {
         }
 
         if self.redraw_all_squares || self.redraw_squares.len() > 0 {
-            self.draw_board(canvas)
-                .iter()
-                .for_each(|r| canvas.update_partial(r));
+            self.draw_board(canvas).iter().for_each(|r| {
+                canvas.update_partial(r);
+            });
             self.redraw_all_squares = false;
         }
 

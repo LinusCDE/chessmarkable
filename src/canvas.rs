@@ -32,17 +32,17 @@ impl<'a> Canvas<'a> {
         self.framebuffer_mut().clear();
     }
 
-    pub fn update_full(&mut self) {
+    pub fn update_full(&mut self) -> u32 {
         self.framebuffer_mut().full_refresh(
             waveform_mode::WAVEFORM_MODE_GC16,
             display_temp::TEMP_USE_REMARKABLE_DRAW,
             dither_mode::EPDC_FLAG_USE_DITHERING_PASSTHROUGH,
             0,
             true,
-        );
+        )
     }
 
-    pub fn update_partial(&mut self, region: &mxcfb_rect) {
+    pub fn update_partial(&mut self, region: &mxcfb_rect) -> u32 {
         self.framebuffer_mut().partial_refresh(
             region,
             PartialRefreshMode::Async,
@@ -51,7 +51,11 @@ impl<'a> Canvas<'a> {
             dither_mode::EPDC_FLAG_USE_REMARKABLE_DITHER,
             0, // See documentation on DRAWING_QUANT_BITS in libremarkable/framebuffer/common.rs
             false,
-        );
+        )
+    }
+
+    pub fn wait_for_update(&mut self, update_marker: u32) {
+        self.framebuffer_mut().wait_refresh_complete(update_marker);
     }
 
     pub fn draw_text(&mut self, pos: Point2<Option<i32>>, text: &str, size: f32) -> mxcfb_rect {
