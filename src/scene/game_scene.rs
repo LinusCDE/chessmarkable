@@ -821,6 +821,8 @@ impl Scene for GameScene {
         if let Ok(bot_bit_move) = self.bot_move.try_recv() {
             self.clear_last_moved_hints();
             // Wait till board got refresh with all changes until now
+            // This is useful if the bot is set to and can react
+            // almost instantaniously.
             self.draw_board(canvas)
                 .iter()
                 .map(|rect| canvas.update_partial(rect))
