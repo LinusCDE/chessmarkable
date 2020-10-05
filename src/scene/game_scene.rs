@@ -262,9 +262,9 @@ impl GameScene {
                     },
                     self.piece_hitboxes[x][y].size().cast().unwrap(),
                     if is_bright_bg {
-                        color::GRAY(50)
-                    } else {
                         color::GRAY(100)
+                    } else {
+                        color::GRAY(50)
                     },
                 );
                 let piece = self.board.piece_at_sq(square);
