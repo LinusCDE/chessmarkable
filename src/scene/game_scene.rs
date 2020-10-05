@@ -462,10 +462,13 @@ impl GameScene {
         }
 
         self.board.apply_move(selected_move);
-        debug!("Board after newest move (FEN): \"{}\"", self.board.fen());
+        debug!("Updated board (FEN): \"{}\"", self.board.fen());
         if let Err(e) = self.board.is_okay() {
             self.board.undo_move();
-            return Err(format!("Updated board (FEN): {:?}", e));
+            return Err(format!(
+                "Board got into illegal state after move (FEN): {:?}",
+                e
+            ));
         }
 
         // Moves that can change more than just src and dest
