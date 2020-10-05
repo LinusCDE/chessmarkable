@@ -521,6 +521,14 @@ impl GameScene {
             }
         }
     }
+
+    fn remove_last_moved_hints(&mut self) {
+        for last_move_hint in self.last_move_from.iter().chain(self.last_move_to.iter()) {
+            self.redraw_squares.insert(last_move_hint.clone());
+        }
+        self.last_move_from = None;
+        self.last_move_to = None;
+    }
 }
 
 impl Drop for GameScene {
@@ -558,11 +566,13 @@ impl Scene for GameScene {
                             if self.game_mode == GameMode::PvP {
                                 if self.board.moves_played() >= 1 {
                                     self.board.undo_move();
+                                    self.remove_last_moved_hints();
                                     self.redraw_all_squares = true;
                                 }
                             } else if !self.ignore_user_moves && self.board.moves_played() >= 2 {
                                 self.board.undo_move(); // Bots move
                                 self.board.undo_move(); // Players move
+                                self.remove_last_moved_hints();
                                 self.redraw_all_squares = true;
                             }
                         }
@@ -674,13 +684,7 @@ impl Scene for GameScene {
 
         // Await bot move
         if let Ok(bot_bit_move) = self.bot_move.try_recv() {
-            // Remove last moved hints
-            for last_move_hint in self.last_move_from.iter().chain(self.last_move_to.iter()) {
-                self.redraw_squares.insert(last_move_hint.clone());
-            }
-            self.last_move_from = None;
-            self.last_move_to = None;
-
+            self.remove_last_moved_hints();
             // Wait till board got refresh with all changes until now
             self.draw_board(canvas)
                 .iter()
