@@ -297,8 +297,8 @@ impl GameScene {
             }
 
             let looser = match self.board.turn() {
-                Player::Black => "White",
-                Player::White => "Black",
+                Player::Black => "Black",
+                Player::White => "White",
             };
             self.draw_game_bottom_info = Some(GameBottomInfo::GameEnded(format!(
                 "{} is checkmated!",
