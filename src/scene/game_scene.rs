@@ -165,6 +165,7 @@ pub struct GameScene {
     force_full_refresh: Option<SystemTime>,
     last_checkmate_check: SystemTime,
     draw_game_bottom_info: Option<GameBottomInfo>,
+    draw_game_bottom_info_delay_until: Option<SystemTime>,
     draw_game_bottom_info_last_rect: Option<mxcfb_rect>,
     draw_game_bottom_info_clear_at: Option<SystemTime>,
     is_game_over: bool,
@@ -265,6 +266,7 @@ impl GameScene {
             back_button_pressed: false,
             force_full_refresh: None,
             last_checkmate_check: SystemTime::now(),
+            draw_game_bottom_info_delay_until: Some(SystemTime::now() + Duration::from_secs(2)),
             draw_game_bottom_info: Some(GameBottomInfo::Info("White starts".to_owned())),
             draw_game_bottom_info_last_rect: None,
             draw_game_bottom_info_clear_at: None,
@@ -300,22 +302,52 @@ impl GameScene {
                 Player::Black => "Black",
                 Player::White => "White",
             };
-            self.draw_game_bottom_info = Some(GameBottomInfo::GameEnded(format!(
-                "{} is checkmated!",
-                looser
-            )));
+            self.show_bottom_game_info(
+                GameBottomInfo::GameEnded(format!("{} is checkmated!", looser)),
+                None,
+                None,
+            );
             self.is_game_over = true;
         } else if self.board.stalemate() {
             if self.is_game_over {
                 return; // This is not new
             }
 
-            self.draw_game_bottom_info = Some(GameBottomInfo::GameEnded("Stalemate!".to_owned()));
+            self.show_bottom_game_info(
+                GameBottomInfo::GameEnded("Stalemate!".to_owned()),
+                None,
+                None,
+            );
             self.is_game_over = true;
         } else if self.is_game_over {
             // Probably undone a move. Is not gameover anymore
             self.is_game_over = false;
         }
+    }
+
+    fn clear_bottom_game_info(&mut self) {
+        if self.draw_game_bottom_info_last_rect.is_some() {
+            self.draw_game_bottom_info_clear_at = Some(SystemTime::now());
+        }
+    }
+
+    /// Depending on the durations of show_after and clear_after,
+    /// previous text can be removed with a delay before displaying
+    /// a new one or the new text can be removed after some time.
+    fn show_bottom_game_info(
+        &mut self,
+        info: GameBottomInfo,
+        show_after: Option<Duration>,
+        clear_after: Option<Duration>,
+    ) {
+        self.draw_game_bottom_info_delay_until = Some(
+            show_after
+                .and_then(|delay| Some(SystemTime::now() + delay))
+                .unwrap_or(SystemTime::now()),
+        );
+        self.draw_game_bottom_info = Some(info);
+        self.draw_game_bottom_info_clear_at =
+            clear_after.and_then(|delay| Some(SystemTime::now() + delay));
     }
 
     fn draw_board(&mut self, canvas: &mut Canvas) -> Vec<mxcfb_rect> {
@@ -464,6 +496,8 @@ impl GameScene {
 
                 if elapsed < reaction_delay {
                     thread::sleep(reaction_delay - elapsed);
+                } else {
+                    info!("The bot took a long time to think: {:?}", elapsed);
                 }
                 //let elapsed =
                 job_result.send(bot_move).ok();
@@ -528,8 +562,7 @@ impl GameScene {
                     } else {
                         "It's your turn.".to_owned()
                     };
-                    self.draw_game_bottom_info = Some(GameBottomInfo::Info(text));
-                    self.draw_game_bottom_info_clear_at = None;
+                    self.show_bottom_game_info(GameBottomInfo::Info(text), None, None);
                 }
                 Player::Black => {
                     if self.game_mode == GameMode::PvP {
@@ -537,12 +570,13 @@ impl GameScene {
                             Some(GameBottomInfo::Info("It's black's turn.".to_owned()));
                         self.draw_game_bottom_info_clear_at = None;
                     } else {
-                        if self.draw_game_bottom_info_last_rect.is_some() {
-                            // If the bot delay is low, there is no point in removing and
-                            // readding the same text rapidly.
-                            self.draw_game_bottom_info_clear_at =
-                                Some(SystemTime::now() + Duration::from_millis(200));
-                        }
+                        self.show_bottom_game_info(
+                            GameBottomInfo::Info("Thinking...".to_owned()),
+                            Some(Duration::from_millis(
+                                (CLI_OPTS.bot_reaction_delay + 100) as u64,
+                            )),
+                            Some(Duration::from_millis(100)),
+                        );
                     }
                 }
             }
@@ -575,10 +609,12 @@ impl GameScene {
         let bit_move = BitMove::make(0, src, dest);
 
         if let Err(e) = self.try_move(bit_move, false) {
-            self.draw_game_bottom_info = Some(GameBottomInfo::Info(format!("Invalid move: {}", e)));
-            self.draw_game_bottom_info_clear_at =
-                Some(SystemTime::now() + Duration::from_millis(3000));
             warn!("Invalid user move: {}", e);
+            self.show_bottom_game_info(
+                GameBottomInfo::Info(format!("Invalid move: {}", e)),
+                None,
+                Some(Duration::from_secs(3)),
+            )
         } else {
             self.redraw_squares.insert(dest.clone());
 
@@ -627,9 +663,7 @@ impl GameScene {
         }
         self.remove_last_moved_hints();
         self.redraw_all_squares = true;
-        if self.draw_game_bottom_info_last_rect.is_some() {
-            self.draw_game_bottom_info_clear_at = Some(SystemTime::now());
-        }
+        self.clear_bottom_game_info();
         Ok(())
     }
 }
@@ -836,9 +870,16 @@ impl Scene for GameScene {
             self.force_full_refresh = None;
         }
 
+        // I don't grasp these conditions anymore as well. I probably
+        // coded too long because I basicially brute forced many of these).
+        // TODO: Write it as a single enum to make better sense of all this.
+        let has_new_bottom_info = self.draw_game_bottom_info.is_some()
+            && self.draw_game_bottom_info_delay_until.is_some()
+            && self.draw_game_bottom_info_delay_until.unwrap() <= SystemTime::now();
         // Clear previous text when changed or expired
-        if self.draw_game_bottom_info.is_some()
-            || (self.draw_game_bottom_info_clear_at.is_some()
+        if has_new_bottom_info
+            || (self.draw_game_bottom_info_last_rect.is_some()
+                && self.draw_game_bottom_info_clear_at.is_some()
                 && self.draw_game_bottom_info_clear_at.unwrap() <= SystemTime::now())
         {
             // Clear any previous text
@@ -860,30 +901,37 @@ impl Scene for GameScene {
         }
 
         // Draw a requested text once
-        if let Some(ref game_bottom_info) = self.draw_game_bottom_info {
-            // Old text was cleared above already
+        if has_new_bottom_info {
+            if let Some(ref game_bottom_info) = self.draw_game_bottom_info {
+                // Old text was cleared above already
 
-            let rect = match game_bottom_info {
-                GameBottomInfo::GameEnded(ref short_message) => canvas.draw_text(
-                    Point2 {
-                        x: None,
-                        y: Some(DISPLAYHEIGHT as i32 - 100),
-                    },
-                    short_message,
-                    100.0,
-                ),
-                GameBottomInfo::Info(ref message) => canvas.draw_text(
-                    Point2 {
-                        x: None,
-                        y: Some(DISPLAYHEIGHT as i32 - 20),
-                    },
-                    message,
-                    50.0,
-                ),
-            };
-            canvas.update_partial(&rect);
-            self.draw_game_bottom_info_last_rect = Some(rect);
-            self.draw_game_bottom_info = None;
+                let rect = match game_bottom_info {
+                    GameBottomInfo::GameEnded(ref short_message) => canvas.draw_text(
+                        Point2 {
+                            x: None,
+                            y: Some(DISPLAYHEIGHT as i32 - 100),
+                        },
+                        short_message,
+                        100.0,
+                    ),
+                    GameBottomInfo::Info(ref message) => canvas.draw_text(
+                        Point2 {
+                            x: None,
+                            y: Some(DISPLAYHEIGHT as i32 - 20),
+                        },
+                        message,
+                        50.0,
+                    ),
+                };
+                canvas.update_partial(&rect);
+                self.draw_game_bottom_info_last_rect = Some(rect);
+                self.draw_game_bottom_info = None;
+                if self.draw_game_bottom_info_clear_at.is_some()
+                    && self.draw_game_bottom_info_clear_at.unwrap() <= SystemTime::now()
+                {
+                    self.draw_game_bottom_info_clear_at = None;
+                }
+            }
         }
     }
 }
