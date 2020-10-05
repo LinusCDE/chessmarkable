@@ -481,10 +481,21 @@ impl GameScene {
         self.finger_down_square = None;
         self.clear_move_hints();
         let bit_move = BitMove::make(0, src, dest);
+
         if let Err(e) = self.try_move(bit_move, false) {
             println!("Invalid move: {}", e);
         } else {
             self.redraw_squares.insert(dest.clone());
+
+            // Remove last moved image when user moved onto one
+            if self.last_move_from.is_some() && self.last_move_from.unwrap() == dest {
+                self.redraw_squares.insert(self.last_move_from.unwrap());
+                self.last_move_from = None;
+            }
+            if self.last_move_to.is_some() && self.last_move_to.unwrap() == dest {
+                self.redraw_squares.insert(self.last_move_to.unwrap());
+                self.last_move_to = None;
+            }
             // Task bot to do a move
             if self.game_mode != GameMode::PvP {
                 self.bot_job
