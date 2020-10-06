@@ -7,9 +7,9 @@
 <!-- [![opkg](https://img.shields.io/badge/OPKG-chessmarkable-blue)](https://github.com/toltec-dev/toltec) -->
 <!-- [![Mentioned in Awesome reMarkable](https://awesome.re/mentioned-badge.svg)](https://github.com/reHackable/awesome-reMarkable) -->
 
-A chess game for the reMarkable tablet writting using the [pleco](https://crates.io/crates/pleco) chess library which is a port of [Stockfish](https://stockfishchess.org/)
+A chess game for the reMarkable tablet writting using the [pleco](https://crates.io/crates/pleco) chess library which is a port of [Stockfish].(https://stockfishchess.org/)
 
-<img src="https://transfer.cosmos-ink.net/lH2sG/scr1.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/AC8Qx/scr2.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/6LoEA/scr3.jpg" width="30%">
+<img src="https://transfer.cosmos-ink.net/lH2sG/scr1.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/pGFAe/2.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/LZ9QT/3.jpg" width="30%">
 
 ## Controlling
 
@@ -19,6 +19,12 @@ A chess piece can be moved in two ways:
 2. Clicking it and moving the finger onto the square to move it there on release
 
 The second method has the advantage that it doesn't highlight the chess piece or shows the possible moves.
+
+## FEN
+
+When running the Game with the enviroment variable `RUST_LOG` set to `debug`, the [FEN](https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation) of a board will be output on each move. This is useful for debugging but also for manually saving a game state or resuming it elsewhere since this notation should be compatible with other chess programs/engines.
+
+The reverse can also be done. Running chessmarkable with `-i` set to a FEN, will start any game with the supplied board. That way a game can be resumed or debugging a edge case speed up.
 
 ## Installation
 
@@ -41,9 +47,7 @@ The second method has the advantage that it doesn't highlight the chess piece or
 ## Todo
 
 - Proper own icon(s)
-- Check whether the difficulties are good (let me please know in the issues if not)
-- Some more information for the user on invalid moves
-- Fix potential errors that are currently not checked and instead can kill the game
+- Clean the code
 
 ## Credit
 
