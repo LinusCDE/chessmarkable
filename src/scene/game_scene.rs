@@ -579,7 +579,7 @@ impl GameScene {
 
         if !self.is_local_user(other_player) {
             self.show_bottom_game_info(
-                GameBottomInfo::Info("Waiting for opponent...".to_owned()),
+                GameBottomInfo::Info("Waiting on your opponent...".to_owned()),
                 Some(Duration::from_millis(
                     (CLI_OPTS.bot_reaction_delay + 100) as u64,
                 )),
@@ -694,16 +694,18 @@ impl GameScene {
                     self.update_board(fen);
                     // TODO: Better message depending on game mode
                     let message = if !self.is_local_user(player) {
-                        "Your opponent's turn.".to_owned()
+                        None
                     } else {
                         if !self.is_local_user(player.other_player()) {
-                            "It's your turn.".to_owned()
+                            Some("It's your turn.".to_owned())
                         } else {
-                            format!("It's {}'s turn.", player)
+                            Some(format!("It's {}'s turn.", player))
                         }
                     };
 
-                    self.show_bottom_game_info(GameBottomInfo::Info(message), None, None);
+                    if let Some(message) = message {
+                        self.show_bottom_game_info(GameBottomInfo::Info(message), None, None);
+                    }
                 }
             }
         }
