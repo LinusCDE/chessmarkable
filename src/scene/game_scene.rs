@@ -281,7 +281,7 @@ impl GameScene {
         }
 
         Self {
-            board: Board::default(), // Temporary
+            board: Board::default(), // Temporary default (usually stays that but will change when having a custom fen)
             first_draw: true,
             ignore_user_moves: false,
             game_mode,
@@ -556,6 +556,7 @@ impl GameScene {
             Player::Black => self.black_request_sender.clone(),
             Player::White => self.white_request_sender.clone(),
         };
+        let other_player = self.board.turn().other_player();
 
         if sender.is_none() {
             self.show_bottom_game_info(
@@ -575,6 +576,16 @@ impl GameScene {
                 .await
                 .ok();
         });
+
+        if !self.is_local_user(other_player) {
+            self.show_bottom_game_info(
+                GameBottomInfo::Info("Waiting for opponent...".to_owned()),
+                Some(Duration::from_millis(
+                    (CLI_OPTS.bot_reaction_delay + 100) as u64,
+                )),
+                Some(Duration::from_millis(100)),
+            );
+        }
     }
 
     fn clear_last_moved_hints(&mut self) {
@@ -619,15 +630,31 @@ impl GameScene {
         self.board = new_board;
     }
 
+    /// A local user can tap on the tablet. Neither a bot nor a remotly
+    /// connected player are that.
+    fn is_local_user(&self, player: Player) -> bool {
+        match player {
+            Player::Black => self.black_request_sender.is_some(),
+            Player::White => self.white_request_sender.is_some(),
+        }
+    }
+
     fn handle_updates(&mut self, player: Player, update_receiver: &mut Receiver<ChessUpdate>) {
         for update in update_receiver.try_recv() {
             //debug!("Got update for {}: {:#?}", player, update);
             match update {
                 ChessUpdate::Board { ref fen } => self.update_board(fen),
-                ChessUpdate::GenericErrorResponse { message } => warn!(
-                    "Received a GenericErrorResponse for {}: {}",
-                    player, message
-                ),
+                ChessUpdate::GenericErrorResponse { message } => {
+                    warn!(
+                        "Received a GenericErrorResponse for {}: {}",
+                        player, message
+                    );
+                    self.show_bottom_game_info(
+                        GameBottomInfo::Info(format!("[Error] {}", message)),
+                        None,
+                        None,
+                    );
+                }
                 ChessUpdate::PossibleMoves { possible_moves } => {
                     self.possible_moves = possible_moves;
 
@@ -641,20 +668,42 @@ impl GameScene {
                 ChessUpdate::MovePieceFailed { fen, message } => {
                     self.update_board(&fen);
                     self.show_bottom_game_info(
-                        GameBottomInfo::Info(format!("Move failed: {}", message)),
+                        GameBottomInfo::Info(format!("{}", message)),
                         None,
                         Some(Duration::from_secs(3)),
                     )
                 }
-                ChessUpdate::PlayerMovedAPiece { player, .. } => info!("{} made a move", player),
+                ChessUpdate::PlayerMovedAPiece {
+                    player,
+                    moved_piece_source,
+                    moved_piece_destination,
+                } => {
+                    let is_local_user = self.is_local_user(player);
+                    if !is_local_user {
+                        // This player is not controlled by this frontend.
+                        // Either a bot or an remote opponent whoses move
+                        // should get marked.
+                        self.last_move_from = Some(moved_piece_source);
+                        self.last_move_to = Some(moved_piece_destination);
+                        self.redraw_squares.insert(moved_piece_source);
+                        self.redraw_squares.insert(moved_piece_destination);
+                    }
+                    info!("{} (is_local_user: {}) made a move", player, is_local_user);
+                }
                 ChessUpdate::PlayerSwitch { player, ref fen } => {
                     self.update_board(fen);
                     // TODO: Better message depending on game mode
-                    self.show_bottom_game_info(
-                        GameBottomInfo::Info(format!("It's {}'s turn.", player)),
-                        None,
-                        None,
-                    );
+                    let message = if !self.is_local_user(player) {
+                        "Your opponent's turn.".to_owned()
+                    } else {
+                        if !self.is_local_user(player.other_player()) {
+                            "It's your turn.".to_owned()
+                        } else {
+                            format!("It's {}'s turn.", player)
+                        }
+                    };
+
+                    self.show_bottom_game_info(GameBottomInfo::Info(message), None, None);
                 }
             }
         }
