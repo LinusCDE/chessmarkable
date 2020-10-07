@@ -1,4 +1,6 @@
 #[macro_use]
+extern crate anyhow;
+#[macro_use]
 extern crate downcast_rs;
 #[macro_use]
 extern crate lazy_static;
@@ -6,6 +8,8 @@ extern crate lazy_static;
 extern crate log;
 
 mod canvas;
+mod chess_game;
+mod chess_logic;
 mod scene;
 
 use crate::canvas::Canvas;

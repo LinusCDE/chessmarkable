@@ -1,14 +1,16 @@
 use super::Scene;
 use crate::canvas::*;
+use crate::chess_logic::*;
 use crate::CLI_OPTS;
+use anyhow::Result;
 use fxhash::{FxHashMap, FxHashSet};
 use libremarkable::image;
-use libremarkable::input::{gpio, multitouch, multitouch::Finger, InputEvent};
+use libremarkable::input::{multitouch, InputEvent};
 use pleco::bot_prelude::*;
 use pleco::{BitMove, Board, File, Piece, Player, Rank, SQ};
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::thread;
 use std::time::{Duration, SystemTime};
+use tokio::runtime;
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 lazy_static! {
     // Underlays / Background layers
@@ -129,13 +131,11 @@ pub enum GameMode {
 pub struct GameScene {
     board: Board,
     /// May be above zero when a fen was imported. Used to prevent panic on undo.
-    board_moves_played_offset: u16,
     game_mode: GameMode,
     first_draw: bool,
     /// Likely because it's currently the turn of the bot
     ignore_user_moves: bool,
-    bot_job: Sender<Option<(Board, u16)>>,
-    bot_move: Receiver<BitMove>,
+
     back_button_hitbox: Option<mxcfb_rect>,
     undo_button_hitbox: Option<mxcfb_rect>,
     full_refresh_button_hitbox: Option<mxcfb_rect>,
@@ -169,6 +169,12 @@ pub struct GameScene {
     draw_game_bottom_info_last_rect: Option<mxcfb_rect>,
     draw_game_bottom_info_clear_at: Option<SystemTime>,
     is_game_over: bool,
+    white_request_sender: Option<Sender<ChessRequest>>,
+    black_request_sender: Option<Sender<ChessRequest>>,
+    white_update_receiver: Option<Receiver<ChessUpdate>>,
+    black_update_receiver: Option<Receiver<ChessUpdate>>,
+    possible_moves: Vec<(SQ, SQ)>,
+    runtime: runtime::Runtime,
 }
 
 impl GameScene {
@@ -220,28 +226,63 @@ impl GameScene {
         let img_piece_moved_to =
             IMG_PIECE_MOVED_TO.resize(square_size, square_size, image::FilterType::Lanczos3);
 
-        let (bot_job_tx, bot_job_rx) = channel();
-        let (bot_move_tx, bot_move_rx) = channel();
-        if game_mode != GameMode::PvP {
-            Self::spawn_bot_thread(bot_job_rx, bot_move_tx);
+        // Create game (will run on as many theads as the cpu has cores)
+        let mut runtime = runtime::Builder::new()
+            .thread_name("tokio_game_scene")
+            .threaded_scheduler()
+            //.max_threads(2)
+            .build()
+            .expect("Failed to create tokio runtime");
+
+        let mut white_request_sender: Option<Sender<ChessRequest>> = None;
+        let mut black_request_sender: Option<Sender<ChessRequest>> = None;
+        let mut white_update_receiver: Option<Receiver<ChessUpdate>> = None;
+        let mut black_update_receiver: Option<Receiver<ChessUpdate>> = None;
+
+        if game_mode == GameMode::PvP {
+            let (white_update_tx, white_update_rx) = channel::<ChessUpdate>(256);
+            let (white_request_tx, white_request_rx) = channel::<ChessRequest>(256);
+
+            let (black_update_tx, black_update_rx) = channel::<ChessUpdate>(256);
+            let (black_request_tx, black_request_rx) = channel::<ChessRequest>(256);
+
+            runtime.spawn(create_game(
+                (white_update_tx, white_request_rx),
+                (black_update_tx, black_request_rx),
+                stubbed_spectator(),
+                CLI_OPTS.intial_fen.clone(),
+            ));
+
+            white_request_sender = Some(white_request_tx);
+            black_request_sender = Some(black_request_tx);
+            white_update_receiver = Some(white_update_rx);
+            black_update_receiver = Some(black_update_rx);
+        //Self::spawn_bot_thread(bot_job_rx, bot_move_tx); // TODO
+        } else {
+            let (white_update_tx, white_update_rx) = channel::<ChessUpdate>(256);
+            let (white_request_tx, white_request_rx) = channel::<ChessRequest>(256);
+
+            let bot = runtime
+                .block_on(create_bot::<AlphaBetaSearcher>(
+                    Player::Black,
+                    game_mode as u16,
+                ))
+                .expect("Failed to initialize bot task");
+
+            runtime.spawn(create_game(
+                (white_update_tx, white_request_rx),
+                bot,
+                stubbed_spectator(),
+                CLI_OPTS.intial_fen.clone(),
+            ));
+
+            white_request_sender = Some(white_request_tx);
+            white_update_receiver = Some(white_update_rx);
         }
 
-        let board = if let Some(ref fen) = CLI_OPTS.intial_fen {
-            if fen.is_empty() {
-                Board::default()
-            } else {
-                Board::from_fen(fen).expect("Failed to load board from supplied FEN")
-            }
-        } else {
-            Board::default()
-        };
-
         Self {
-            board_moves_played_offset: board.moves_played(),
-            board,
+            board: Board::default(), // Temporary
             first_draw: true,
-            bot_job: bot_job_tx,
-            bot_move: bot_move_rx,
             ignore_user_moves: false,
             game_mode,
             piece_hitboxes,
@@ -271,6 +312,12 @@ impl GameScene {
             draw_game_bottom_info_last_rect: None,
             draw_game_bottom_info_clear_at: None,
             is_game_over: false,
+            runtime,
+            black_request_sender,
+            black_update_receiver,
+            white_request_sender,
+            white_update_receiver,
+            possible_moves: vec![],
         }
     }
 
@@ -292,33 +339,35 @@ impl GameScene {
         }
     }
 
-    fn check_game_over(&mut self) {
-        if self.board.checkmate() {
-            if self.is_game_over {
-                return; // This is not new
-            }
+    fn handle_outcome(&mut self, outcome: Option<ChessOutcome>) {
+        if let Some(outcome) = outcome {
+            if let ChessOutcome::Checkmate { winner } = outcome {
+                if self.is_game_over {
+                    return; // This is not new
+                }
 
-            let looser = match self.board.turn() {
-                Player::Black => "Black",
-                Player::White => "White",
-            };
-            self.show_bottom_game_info(
-                GameBottomInfo::GameEnded(format!("{} is checkmated!", looser)),
-                None,
-                None,
-            );
-            self.is_game_over = true;
-        } else if self.board.stalemate() {
-            if self.is_game_over {
-                return; // This is not new
-            }
+                let looser = match winner {
+                    Player::Black => "White",
+                    Player::White => "Black",
+                };
+                self.show_bottom_game_info(
+                    GameBottomInfo::GameEnded(format!("{} is checkmated!", looser)),
+                    None,
+                    None,
+                );
+                self.is_game_over = true;
+            } else if let ChessOutcome::Stalemate = outcome {
+                if self.is_game_over {
+                    return; // This is not new
+                }
 
-            self.show_bottom_game_info(
-                GameBottomInfo::GameEnded("Stalemate!".to_owned()),
-                None,
-                None,
-            );
-            self.is_game_over = true;
+                self.show_bottom_game_info(
+                    GameBottomInfo::GameEnded("Stalemate!".to_owned()),
+                    None,
+                    None,
+                );
+                self.is_game_over = true;
+            }
         } else if self.is_game_over {
             // Probably undone a move. Is not gameover anymore
             self.is_game_over = false;
@@ -475,112 +524,7 @@ impl GameScene {
         }
     }
 
-    fn spawn_bot_thread(
-        job: Receiver<Option<(Board, u16)>>,
-        job_result: Sender<BitMove>,
-    ) -> thread::JoinHandle<()> {
-        thread::Builder::new()
-            .name("ChessBot".to_owned())
-            .spawn(move || loop {
-                let job_data = job.recv().unwrap();
-                if job_data.is_none() {
-                    // Abort requested
-                    info!("Bot thread is terminating");
-                    break;
-                }
-                let (board, depth) = job_data.unwrap();
-                let started = SystemTime::now();
-                let bot_move = Self::do_bot_move(board, depth);
-                let elapsed = started.elapsed().unwrap_or(Duration::new(0, 0));
-                let reaction_delay = Duration::from_millis(CLI_OPTS.bot_reaction_delay.into());
-
-                if elapsed < reaction_delay {
-                    thread::sleep(reaction_delay - elapsed);
-                } else {
-                    info!("The bot took a long time to think: {:?}", elapsed);
-                }
-                //let elapsed =
-                job_result.send(bot_move).ok();
-            })
-            .unwrap()
-    }
-
-    fn do_bot_move(board: Board, depth: u16) -> BitMove {
-        debug!("Bot is working...");
-        //let depth = board.depth() + 1; // Should probably be this
-        let bot_bit_move = AlphaBetaSearcher::best_move(board, depth);
-        bot_bit_move
-    }
-
-    fn try_move(&mut self, bit_move: BitMove, trust_move: bool) -> Result<(), String> {
-        let selected_move: BitMove = if !trust_move {
-            let mut selected_move: Option<BitMove> = None;
-            for legal_move in self.board.generate_moves().iter() {
-                if legal_move.get_src_u8() == bit_move.get_src_u8()
-                    && legal_move.get_dest_u8() == bit_move.get_dest_u8()
-                {
-                    selected_move = Some(legal_move.clone());
-                }
-            }
-            if selected_move.is_none() {
-                return Err("Move not found as possibility".to_owned());
-            }
-            selected_move.unwrap()
-        } else {
-            bit_move
-        };
-
-        if bit_move.get_src() == bit_move.get_dest() {
-            if bit_move.is_null() {
-                return Err("Move is a null move that doesn't actually move (this may be a sign for having given up).".to_owned());
-            } else {
-                return Err("Move does not actually move (not a null move though).".to_owned());
-            }
-        }
-
-        self.board.apply_move(selected_move);
-        debug!("Updated board (FEN): \"{}\"", self.board.fen());
-        if let Err(e) = self.board.is_okay() {
-            self.try_undo(1)?;
-            return Err(format!(
-                "Board got into illegal state after move (FEN): {:?}",
-                e
-            ));
-        }
-        // Moves that can change more than just src and dest
-        if selected_move.is_castle() || selected_move.is_en_passant() {
-            // Is en passant even affecting more than dest and src ??
-            self.redraw_all_squares = true;
-        }
-
-        self.check_game_over();
-        if !self.is_game_over {
-            match self.board.turn() {
-                Player::White => {
-                    let text = if self.game_mode == GameMode::PvP {
-                        "It's white's turn.".to_owned()
-                    } else {
-                        "It's your turn.".to_owned()
-                    };
-                    self.show_bottom_game_info(GameBottomInfo::Info(text), None, None);
-                }
-                Player::Black => {
-                    if self.game_mode == GameMode::PvP {
-                        self.draw_game_bottom_info =
-                            Some(GameBottomInfo::Info("It's black's turn.".to_owned()));
-                        self.draw_game_bottom_info_clear_at = None;
-                    } else {
-                        self.show_bottom_game_info(
-                            GameBottomInfo::Info("Thinking...".to_owned()),
-                            Some(Duration::from_millis(
-                                (CLI_OPTS.bot_reaction_delay + 100) as u64,
-                            )),
-                            Some(Duration::from_millis(100)),
-                        );
-                    }
-                }
-            }
-        }
+    fn perform_move(&mut self, bit_move: BitMove) -> Result<()> {
         Ok(())
     }
 
@@ -594,10 +538,10 @@ impl GameScene {
     fn set_move_hints(&mut self, square: SQ) {
         self.clear_move_hints();
 
-        for legal_move in self.board.generate_moves().iter() {
-            if legal_move.get_src() == square {
-                self.move_hints.insert(legal_move.get_dest());
-                self.redraw_squares.insert(legal_move.get_dest());
+        for (src, dest) in self.possible_moves.iter() {
+            if *src == square {
+                self.move_hints.insert(*dest);
+                self.redraw_squares.insert(*dest);
             }
         }
     }
@@ -606,29 +550,31 @@ impl GameScene {
         self.selected_square = None;
         self.finger_down_square = None;
         self.clear_move_hints();
-        let bit_move = BitMove::make(0, src, dest);
+        self.clear_last_moved_hints();
 
-        if let Err(e) = self.try_move(bit_move, false) {
-            warn!("Invalid user move: {}", e);
+        let sender = match self.board.turn() {
+            Player::Black => self.black_request_sender.clone(),
+            Player::White => self.white_request_sender.clone(),
+        };
+
+        if sender.is_none() {
             self.show_bottom_game_info(
-                GameBottomInfo::Info(format!("Invalid move: {}", e)),
+                GameBottomInfo::Info(format!("You can't move {}", self.board.turn())),
                 None,
                 Some(Duration::from_secs(3)),
-            )
-        } else {
-            self.redraw_squares.insert(dest.clone());
-            self.clear_last_moved_hints();
-
-            if !self.is_game_over {
-                // Task bot to do a move
-                if self.game_mode != GameMode::PvP {
-                    self.bot_job
-                        .send(Some((self.board.clone(), self.game_mode.clone() as u16)))
-                        .ok();
-                    self.ignore_user_moves = true;
-                }
-            }
+            );
+            return;
         }
+        let mut sender = sender.unwrap();
+        self.runtime.spawn(async move {
+            sender
+                .send(ChessRequest::MovePiece {
+                    source: src,
+                    destination: dest,
+                })
+                .await
+                .ok();
+        });
     }
 
     fn clear_last_moved_hints(&mut self) {
@@ -640,31 +586,78 @@ impl GameScene {
     }
 
     fn try_undo(&mut self, count: u16) -> Result<(), String> {
-        if count > self.board.moves_played() {
-            return Err(format!(
-                "Can't undo {} moves as that rewind to before the game started.",
-                count
-            ));
-        }
-        if count > self.board.moves_played() - self.board_moves_played_offset {
-            return Err(format!("Can't undo {} moves as the board was probably imported from a FEN which doesn't preserve the moves.", count));
-        }
-
-        for _ in 0..count {
-            self.board.undo_move();
-        }
-        self.clear_last_moved_hints();
-        self.redraw_all_squares = true;
-        self.clear_bottom_game_info();
-        Ok(())
+        todo!();
     }
-}
 
-impl Drop for GameScene {
-    fn drop(&mut self) {
-        // Signal bot thread to terminate
-        debug!("Bot thread should terminate");
-        self.bot_job.send(None).ok();
+    fn update_board(&mut self, fen: &str) {
+        if self.board.fen() == fen {
+            debug!("Ignored unchanged board");
+        }
+        info!("Updated FEN: {}", fen);
+
+        let new_board = match Board::from_fen(fen) {
+            Ok(board) => board,
+            Err(e) => {
+                warn!("Failed to parse fen \"{}\". Error: {:?}", fen, e);
+                return;
+            }
+        };
+
+        // Find updated squares
+        for x in 0..8 {
+            for y in 0..8 {
+                let sq = to_square(x, y);
+                let old_piece = self.board.piece_at_sq(sq);
+                let new_piece = new_board.piece_at_sq(sq);
+
+                if old_piece != new_piece {
+                    self.redraw_squares.insert(sq);
+                }
+            }
+        }
+
+        self.board = new_board;
+    }
+
+    fn handle_updates(&mut self, player: Player, update_receiver: &mut Receiver<ChessUpdate>) {
+        for update in update_receiver.try_recv() {
+            //debug!("Got update for {}: {:#?}", player, update);
+            match update {
+                ChessUpdate::Board { ref fen } => self.update_board(fen),
+                ChessUpdate::GenericErrorResponse { message } => warn!(
+                    "Received a GenericErrorResponse for {}: {}",
+                    player, message
+                ),
+                ChessUpdate::PossibleMoves { possible_moves } => {
+                    self.possible_moves = possible_moves;
+
+                    // In case the user already selected a figure but didn't
+                    // receive the possible moves yet, they will get displayed now.
+                    if let Some(selected_square) = self.selected_square {
+                        self.set_move_hints(selected_square);
+                    }
+                }
+                ChessUpdate::Outcome { outcome } => self.handle_outcome(outcome),
+                ChessUpdate::MovePieceFailed { fen, message } => {
+                    self.update_board(&fen);
+                    self.show_bottom_game_info(
+                        GameBottomInfo::Info(format!("Move failed: {}", message)),
+                        None,
+                        Some(Duration::from_secs(3)),
+                    )
+                }
+                ChessUpdate::PlayerMovedAPiece { player, .. } => info!("{} made a move", player),
+                ChessUpdate::PlayerSwitch { player, ref fen } => {
+                    self.update_board(fen);
+                    // TODO: Better message depending on game mode
+                    self.show_bottom_game_info(
+                        GameBottomInfo::Info(format!("It's {}'s turn.", player)),
+                        None,
+                        None,
+                    );
+                }
+            }
+        }
     }
 }
 
@@ -692,24 +685,7 @@ impl Scene for GameScene {
                         if self.undo_button_hitbox.is_some()
                             && Canvas::is_hitting(finger.pos, self.undo_button_hitbox.unwrap())
                         {
-                            if self.ignore_user_moves {
-                                warn!("Can't undo while player is supposed to play (bot is probably playing)");
-                            } else {
-                                let undo_count = if self.game_mode == GameMode::PvP {
-                                    1
-                                } else {
-                                    if self.board.turn() == Player::Black {
-                                        1
-                                    } else {
-                                        2
-                                    }
-                                };
-                                if let Err(e) = self.try_undo(undo_count) {
-                                    error!("Undoing last move failed: {}", e);
-                                } else {
-                                    self.check_game_over(); // May have reverted game over
-                                }
-                            }
+                            todo!();
                         }
                         if self.full_refresh_button_hitbox.is_some()
                             && Canvas::is_hitting(
@@ -817,8 +793,21 @@ impl Scene for GameScene {
             self.force_full_refresh = Some(SystemTime::now() + Duration::from_millis(250));
         }
 
+        // Handle received `ChessUpdate`s
+        if self.white_update_receiver.is_some() {
+            let mut update_receiver = self.white_update_receiver.take().unwrap();
+            self.handle_updates(Player::White, &mut update_receiver);
+            self.white_update_receiver = Some(update_receiver);
+        }
+        if self.black_update_receiver.is_some() {
+            let mut update_receiver = self.black_update_receiver.take().unwrap();
+            self.handle_updates(Player::Black, &mut update_receiver);
+            self.black_update_receiver = Some(update_receiver);
+        }
+
         // Apply bot move
-        if let Ok(bot_bit_move) = self.bot_move.try_recv() {
+        /*
+        if let Ok(when, bot_bit_move) = self.bot_move.try_recv() {
             self.clear_last_moved_hints();
             // Wait till board got refresh with all changes until now
             // This is useful if the bot is set to and can react
@@ -847,7 +836,7 @@ impl Scene for GameScene {
                 // A bit below will be checked for proper ending in this case
             }
             self.ignore_user_moves = false;
-        }
+        }*/
 
         // Update board
         if self.redraw_all_squares || self.redraw_squares.len() > 0 {
