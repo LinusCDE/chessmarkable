@@ -30,3 +30,6 @@ features = [
     "sync",
     "time"
 ]
+
+[lib]
+path = "src/lib/lib.rs"
