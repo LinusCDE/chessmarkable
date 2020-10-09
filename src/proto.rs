@@ -11,6 +11,12 @@ use tokio::stream::StreamExt;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task;
 
+#[derive(Clone, Debug)]
+pub struct ChessConfig {
+    pub starting_fen: Option<String>,
+    pub can_black_undo: bool,
+    pub can_white_undo: bool,
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ChessRequest {
@@ -19,6 +25,7 @@ pub enum ChessRequest {
     CurrentOutcome,
     MovePiece { source: Square, destination: Square },
     Abort { message: String },
+    UndoMoves { moves: u16 },
 }
 
 impl ChessRequest {
@@ -31,6 +38,7 @@ impl ChessRequest {
     }
 }
 
+//#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum ChessUpdate {
     /// Usually the Response to `ChessRequest::CurrentBoard`.
@@ -50,7 +58,7 @@ pub enum ChessUpdate {
         player: Player,
         fen: String,
     },
-    MovePieceFailed {
+    MovePieceFailedResponse {
         // Response to `ChessRequest::MovePiece` when the action failed
         message: String,
         fen: String,
@@ -65,15 +73,22 @@ pub enum ChessUpdate {
     GenericErrorResponse {
         message: String,
     },
+    UndoMovesFailedResponse {
+        message: String,
+    },
+    MovesUndone {
+        who: Player,
+        moves: u16,
+    },
 }
 
 pub async fn create_game(
     white: (Sender<ChessUpdate>, Receiver<ChessRequest>),
     black: (Sender<ChessUpdate>, Receiver<ChessRequest>),
     spectators: (Sender<ChessUpdate>, Receiver<ChessRequest>),
-    starting_fen: Option<String>,
+    config: ChessConfig,
 ) -> Result<()> {
-    let mut game = if let Some(ref fen) = starting_fen {
+    let mut game = if let Some(ref fen) = config.starting_fen {
         ChessGame::from_fen(fen)?
     } else {
         ChessGame::default()
@@ -266,7 +281,7 @@ pub async fn create_game(
                         }
                     }
                     Err(e) => {
-                        send_to_sender!(ChessUpdate::MovePieceFailed {
+                        send_to_sender!(ChessUpdate::MovePieceFailedResponse {
                             message: format!("Denied by engine: {}", e),
                             fen: game.fen(),
                         });
@@ -275,6 +290,52 @@ pub async fn create_game(
             }
             ChessRequest::Abort { .. /* message */ } => {
                 // TODO
+            },
+            ChessRequest::UndoMoves { moves } => {
+                let allowed = match sender {
+                    Player::Black => config.can_black_undo,
+                    Player::White => config.can_white_undo,
+                };
+                if ! allowed {
+                    send_to_sender!(ChessUpdate::UndoMovesFailedResponse {
+                        message: "You are not permitted to do that in this game.".to_owned(),
+                    });
+                } else if game.turn() != sender {
+                    send_to_sender!(ChessUpdate::UndoMovesFailedResponse {
+                        message: "You can only undo when you are playing.".to_owned(),
+                    });
+                }else {
+                    if let Err(e) = game.undo(moves) {
+                        send_to_sender!(ChessUpdate::UndoMovesFailedResponse {
+                            message: format!("Denied by engine: {}", e),
+                        });
+                    }else {
+                        // Select current player and update board
+                        send_to_everyone!(ChessUpdate::PlayerSwitch {
+                            player: game.turn(),
+                            fen: game.fen()
+                        });
+                        // Send the starting player his possible moves
+                        let possible_moves: Vec<_> = game
+                            .possible_moves()
+                            .iter()
+                            .map(|bit_move| (bit_move.get_src().into(), bit_move.get_dest().into()))
+                            .collect();
+                        match game.turn() {
+                            PlecoPlayer::White => white_tx.clone(),
+                            PlecoPlayer::Black => black_tx.clone(),
+                        }
+                        .send(ChessUpdate::PossibleMoves { possible_moves })
+                        .await
+                        .ok();
+                        // Notify everyone of undo
+                        send_to_everyone!(ChessUpdate::MovesUndone {
+                            who: sender,
+                            moves,
+                        });
+
+                    }
+                }
             }
             _ => {
                 bail!("available_to_spectator() is probably not up to date with the handlers (player specific handler found a unhandled entry)!!!");
@@ -329,7 +390,7 @@ pub async fn create_bot<T: Searcher>(
                             .expect("Bot failed to send move");
                     }
                 }
-                ChessUpdate::MovePieceFailed { message, .. } => {
+                ChessUpdate::MovePieceFailedResponse { message, .. } => {
                     error!("A move from the bot was rejected: {}", message);
                     break;
                 }

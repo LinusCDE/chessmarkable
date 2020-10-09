@@ -82,7 +82,7 @@ impl ChessGame {
     pub fn undo(&mut self, count: u16) -> Result<()> {
         if count > self.board.moves_played() {
             return Err(anyhow!(
-                "Can't undo {} moves as that rewind to before the game started.",
+                "Can't undo {} moves as that rewinds to before the game started.",
                 count
             ));
         }

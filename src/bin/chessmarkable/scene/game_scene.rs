@@ -94,6 +94,7 @@ fn to_square(x: usize, y: usize) -> Square {
 enum GameBottomInfo {
     GameEnded(String),
     Info(String),
+    Error(String),
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -227,7 +228,11 @@ impl GameScene {
                 (white_update_tx, white_request_rx),
                 (black_update_tx, black_request_rx),
                 stubbed_spectator(),
-                CLI_OPTS.intial_fen.clone(),
+                ChessConfig {
+                    starting_fen: CLI_OPTS.intial_fen.clone(),
+                    can_black_undo: true,
+                    can_white_undo: true,
+                },
             ));
 
             white_request_sender = Some(white_request_tx);
@@ -251,7 +256,11 @@ impl GameScene {
                 (white_update_tx, white_request_rx),
                 bot,
                 stubbed_spectator(),
-                CLI_OPTS.intial_fen.clone(),
+                ChessConfig {
+                    starting_fen: CLI_OPTS.intial_fen.clone(),
+                    can_black_undo: true,
+                    can_white_undo: true,
+                },
             ));
 
             white_request_sender = Some(white_request_tx);
@@ -538,9 +547,9 @@ impl GameScene {
 
         if sender.is_none() {
             self.show_bottom_game_info(
-                GameBottomInfo::Info(format!("You can't move {}", self.board.turn())),
+                GameBottomInfo::Error(format!("You can't move {}", self.board.turn())),
                 None,
-                Some(Duration::from_secs(3)),
+                Some(Duration::from_secs(10)),
             );
             return;
         }
@@ -572,10 +581,6 @@ impl GameScene {
         }
         self.last_move_from = None;
         self.last_move_to = None;
-    }
-
-    fn try_undo(&mut self, count: u16) -> Result<(), String> {
-        todo!();
     }
 
     fn update_board(&mut self, fen: &str) {
@@ -628,7 +633,7 @@ impl GameScene {
                         player, message
                     );
                     self.show_bottom_game_info(
-                        GameBottomInfo::Info(format!("[Error] {}", message)),
+                        GameBottomInfo::Error(format!("[Error] {}", message)),
                         None,
                         None,
                     );
@@ -643,12 +648,12 @@ impl GameScene {
                     }
                 }
                 ChessUpdate::Outcome { outcome } => self.handle_outcome(outcome),
-                ChessUpdate::MovePieceFailed { fen, message } => {
+                ChessUpdate::MovePieceFailedResponse { fen, message } => {
                     self.update_board(&fen);
                     self.show_bottom_game_info(
-                        GameBottomInfo::Info(format!("{}", message)),
+                        GameBottomInfo::Error(format!("{}", message)),
                         None,
-                        Some(Duration::from_secs(3)),
+                        Some(Duration::from_secs(10)),
                     )
                 }
                 ChessUpdate::PlayerMovedAPiece {
@@ -685,6 +690,16 @@ impl GameScene {
                         self.show_bottom_game_info(GameBottomInfo::Info(message), None, None);
                     }
                 }
+                ChessUpdate::MovesUndone { who, moves } => self.show_bottom_game_info(
+                    GameBottomInfo::Info(format!("{} undid {} move(s).", who, moves)),
+                    None,
+                    Some(Duration::from_secs(3)),
+                ),
+                ChessUpdate::UndoMovesFailedResponse { message } => self.show_bottom_game_info(
+                    GameBottomInfo::Error(format!("Undo failed: {}", message)),
+                    None,
+                    Some(Duration::from_secs(10)),
+                ),
             }
         }
     }
@@ -714,7 +729,40 @@ impl Scene for GameScene {
                         if self.undo_button_hitbox.is_some()
                             && Canvas::is_hitting(finger.pos, self.undo_button_hitbox.unwrap())
                         {
-                            todo!();
+                            if self.ignore_user_moves {
+                                warn!("Can't undo while player is supposed to play (bot is probably playing)");
+                            } else {
+                                let undo_count: u16 = if self.game_mode == GameMode::PvP {
+                                    1
+                                } else {
+                                    if let Player::Black = self.board.turn().into() {
+                                        1
+                                    } else {
+                                        2
+                                    }
+                                };
+                                let sender = match self.board.turn().into() {
+                                    Player::Black => self.black_request_sender.clone(),
+                                    Player::White => self.white_request_sender.clone(),
+                                };
+                                if sender.is_none() {
+                                    error!("Undo failed because it cant be sent (not any local players turn).");
+                                    self.show_bottom_game_info(
+                                        GameBottomInfo::Info(
+                                            "You can't undo right now.".to_owned(),
+                                        ),
+                                        None,
+                                        Some(Duration::from_secs(3)),
+                                    );
+                                }
+                                let mut sender = sender.unwrap();
+                                self.runtime.spawn(async move {
+                                    sender
+                                        .send(ChessRequest::UndoMoves { moves: undo_count })
+                                        .await
+                                        .ok();
+                                });
+                            }
                         }
                         if self.full_refresh_button_hitbox.is_some()
                             && Canvas::is_hitting(
@@ -937,6 +985,14 @@ impl Scene for GameScene {
                         },
                         message,
                         50.0,
+                    ),
+                    GameBottomInfo::Error(ref message) => canvas.draw_text(
+                        Point2 {
+                            x: Some(5),
+                            y: Some(DISPLAYHEIGHT as i32 - 10),
+                        },
+                        message,
+                        35.0,
                     ),
                 };
                 canvas.update_partial(&rect);
