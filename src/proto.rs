@@ -80,6 +80,9 @@ pub enum ChessUpdate {
         who: Player,
         moves: u16,
     },
+    CurrentTotalMovesReponse {
+        total_moves: u16,
+    },
 }
 
 pub async fn create_game(
@@ -226,7 +229,9 @@ pub async fn create_game(
                 send_to_sender!(ChessUpdate::Board { fen: game.fen() });
             }
             ChessRequest::CurrentTotalMoves => {
-                todo!();
+                send_to_sender!(ChessUpdate::CurrentTotalMovesReponse {
+                    total_moves: game.total_moves()
+                });
             }
             ChessRequest::CurrentOutcome => {
                 send_to_sender!(ChessUpdate::Outcome {

@@ -700,6 +700,7 @@ impl GameScene {
                     None,
                     Some(Duration::from_secs(10)),
                 ),
+                ChessUpdate::CurrentTotalMovesReponse { .. } => {} // Not interesting atm
             }
         }
     }
