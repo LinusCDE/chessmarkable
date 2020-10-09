@@ -1,7 +1,3 @@
-[build]
-# Basically always adds the --target=... stuff by default
-target = "armv7-unknown-linux-gnueabihf"
-
 # This might work for some who still use the old toolchain
 #[target.armv7-unknown-linux-gnueabihf]
 #linker = "/opt/poky/2.1.3/sysroots/x86_64-pokysdk-linux/usr/bin/arm-poky-linux-gnueabi/arm-poky-linux-gnueabi-gcc"

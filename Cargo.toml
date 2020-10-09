@@ -7,18 +7,26 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rand = "0.7"
-downcast-rs = "1.2"
-fxhash = "0.2"
-clap = "3.0.0-beta.1"
-lazy_static = "1.4.0"
-pleco = "0.5.0"
-log = "0.4.11"
-env_logger = "0.7.1"
-tokio = { version = "0.2.22", features = [ "rt-core", "rt-threaded", "stream", "sync", "blocking" ] }
 anyhow = "1.0.33"
+clap = "3.0.0-beta.1"
+downcast-rs = "1.2"
+env_logger = "0.7.1"
+fxhash = "0.2"
+lazy_static = "1.4.0"
+log = "0.4.11"
+pleco = "0.5.0"
 
 [dependencies.libremarkable]
-#path = "../libremarkable"
 git = "https://github.com/LinusCDE/libremarkable.git"
 branch = "feature/fix-evdev-crash-in-remux"
+
+[dependencies.tokio]
+version = "0.2.22"
+features = [
+    "blocking",
+    "rt-core",
+    "rt-threaded",
+    "stream",
+    "sync",
+    "time"
+]

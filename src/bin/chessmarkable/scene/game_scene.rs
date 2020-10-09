@@ -1,8 +1,8 @@
 use super::Scene;
 use crate::canvas::*;
-use crate::chess_logic::*;
 use crate::CLI_OPTS;
 use anyhow::Result;
+use chessmarkable::proto::*;
 use fxhash::{FxHashMap, FxHashSet};
 use libremarkable::image;
 use libremarkable::input::{multitouch, InputEvent};
@@ -15,58 +15,58 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 lazy_static! {
     // Underlays / Background layers
     static ref IMG_PIECE_MOVED_FROM: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/piece-moved-from.png"))
+        image::load_from_memory(include_bytes!("../../../../res/piece-moved-from.png"))
             .expect("Failed to load resource as image!");
     static ref IMG_PIECE_MOVED_TO: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/piece-moved-to.png"))
+        image::load_from_memory(include_bytes!("../../../../res/piece-moved-to.png"))
             .expect("Failed to load resource as image!");
 
     // Black set
     static ref IMG_KING_BLACK: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/king-black.png"))
+        image::load_from_memory(include_bytes!("../../../../res/king-black.png"))
             .expect("Failed to load resource as image!");
     static ref IMG_QUEEN_BLACK: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/queen-black.png"))
+        image::load_from_memory(include_bytes!("../../../../res/queen-black.png"))
             .expect("Failed to load resource as image!");
     static ref IMG_BISHOP_BLACK: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/bishop-black.png"))
+        image::load_from_memory(include_bytes!("../../../../res/bishop-black.png"))
             .expect("Failed to load resource as image!");
     static ref IMG_ROOK_BLACK: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/rook-black.png"))
+        image::load_from_memory(include_bytes!("../../../../res/rook-black.png"))
             .expect("Failed to load resource as image!");
     static ref IMG_KNIGHT_BLACK: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/knight-black.png"))
+        image::load_from_memory(include_bytes!("../../../../res/knight-black.png"))
             .expect("Failed to load resource as image!");
     static ref IMG_PAWN_BLACK: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/pawn-black.png"))
+        image::load_from_memory(include_bytes!("../../../../res/pawn-black.png"))
             .expect("Failed to load resource as image!");
 
     // White set
     static ref IMG_KING_WHITE: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/king-white.png"))
+        image::load_from_memory(include_bytes!("../../../../res/king-white.png"))
             .expect("Failed to load resource as image!");
     static ref IMG_QUEEN_WHITE: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/queen-white.png"))
+        image::load_from_memory(include_bytes!("../../../../res/queen-white.png"))
             .expect("Failed to load resource as image!");
     static ref IMG_BISHOP_WHITE: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/bishop-white.png"))
+        image::load_from_memory(include_bytes!("../../../../res/bishop-white.png"))
             .expect("Failed to load resource as image!");
     static ref IMG_ROOK_WHITE: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/rook-white.png"))
+        image::load_from_memory(include_bytes!("../../../../res/rook-white.png"))
             .expect("Failed to load resource as image!");
     static ref IMG_KNIGHT_WHITE: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/knight-white.png"))
+        image::load_from_memory(include_bytes!("../../../../res/knight-white.png"))
             .expect("Failed to load resource as image!");
     static ref IMG_PAWN_WHITE: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/pawn-white.png"))
+        image::load_from_memory(include_bytes!("../../../../res/pawn-white.png"))
             .expect("Failed to load resource as image!");
 
     // Overlays
     static ref IMG_PIECE_SELECTED: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/piece-selected.png"))
+        image::load_from_memory(include_bytes!("../../../../res/piece-selected.png"))
             .expect("Failed to load resource as image!");
     static ref IMG_PIECE_MOVEHINT: image::DynamicImage =
-        image::load_from_memory(include_bytes!("../../res/piece-move-hint.png"))
+        image::load_from_memory(include_bytes!("../../../../res/piece-move-hint.png"))
             .expect("Failed to load resource as image!");
 }
 
@@ -266,6 +266,7 @@ impl GameScene {
                 .block_on(create_bot::<AlphaBetaSearcher>(
                     Player::Black,
                     game_mode as u16,
+                    Duration::from_millis(CLI_OPTS.bot_reaction_delay.into()),
                 ))
                 .expect("Failed to initialize bot task");
 

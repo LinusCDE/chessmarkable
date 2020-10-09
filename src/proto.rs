@@ -1,6 +1,5 @@
-use crate::chess_game::ChessGame;
-pub use crate::chess_game::{ChessOutcome, Player, SQ};
-use crate::CLI_OPTS;
+use crate::game::ChessGame;
+pub use crate::game::{ChessOutcome, Player, SQ};
 use anyhow::{Context, Result};
 use pleco::tools::Searcher;
 use std::thread;
@@ -284,6 +283,7 @@ pub async fn create_game(
 pub async fn create_bot<T: Searcher>(
     me: Player,
     depth: u16,
+    min_reaction_delay: Duration,
 ) -> Result<(Sender<ChessUpdate>, Receiver<ChessRequest>)> {
     let (update_tx, mut update_rx) = channel::<ChessUpdate>(256);
     let (mut request_tx, request_rx) = channel::<ChessRequest>(256);
@@ -301,11 +301,9 @@ pub async fn create_bot<T: Searcher>(
                             let started = SystemTime::now();
                             let bit_move = T::best_move(board, depth);
                             let elapsed = started.elapsed().unwrap_or(Duration::new(0, 0));
-                            let reaction_delay =
-                                Duration::from_millis(CLI_OPTS.bot_reaction_delay.into());
 
-                            if elapsed < reaction_delay {
-                                thread::sleep(reaction_delay - elapsed);
+                            if elapsed < min_reaction_delay {
+                                thread::sleep(min_reaction_delay - elapsed);
                             } else {
                                 info!("Bot took a long time to think: {:?}", elapsed);
                             }
