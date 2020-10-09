@@ -755,14 +755,15 @@ impl Scene for GameScene {
                                         None,
                                         Some(Duration::from_secs(3)),
                                     );
+                                } else {
+                                    let mut sender = sender.unwrap();
+                                    self.runtime.spawn(async move {
+                                        sender
+                                            .send(ChessRequest::UndoMoves { moves: undo_count })
+                                            .await
+                                            .ok();
+                                    });
                                 }
-                                let mut sender = sender.unwrap();
-                                self.runtime.spawn(async move {
-                                    sender
-                                        .send(ChessRequest::UndoMoves { moves: undo_count })
-                                        .await
-                                        .ok();
-                                });
                             }
                         }
                         if self.full_refresh_button_hitbox.is_some()
