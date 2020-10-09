@@ -94,6 +94,7 @@ impl ChessGame {
         for _ in 0..count {
             self.board.undo_move();
         }
+        self.update_game_outcome();
         Ok(())
     }
 

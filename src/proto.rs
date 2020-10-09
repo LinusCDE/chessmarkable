@@ -263,13 +263,13 @@ pub async fn create_game(
                             });
                         }
 
-                        if new_outcome.is_none() {
-                            // Signal other player that he can make his move
-                            send_to_everyone!(ChessUpdate::PlayerSwitch {
-                                player: game.turn(),
-                                fen: game.fen(),
-                            });
+                        // Signal other player that he can make his move (as long as not game over)
+                        send_to_everyone!(ChessUpdate::PlayerSwitch {
+                            player: game.turn(),
+                            fen: game.fen(),
+                        });
 
+                        if new_outcome.is_none() {
                             // Send possible moves to player
                             send_to_other_player!(ChessUpdate::PossibleMoves {
                                 possible_moves: game
@@ -292,7 +292,7 @@ pub async fn create_game(
                 };
             }
             ChessRequest::Abort { .. /* message */ } => {
-                // TODO
+                game.player_left(sender);
             },
             ChessRequest::UndoMoves { moves } => {
                 let allowed = match sender {
@@ -303,16 +303,23 @@ pub async fn create_game(
                     send_to_sender!(ChessUpdate::UndoMovesFailedResponse {
                         message: "You are not permitted to do that in this game.".to_owned(),
                     });
-                } else if game.turn() != sender {
+                } else if game.turn() != sender && game.outcome().is_none() {
                     send_to_sender!(ChessUpdate::UndoMovesFailedResponse {
-                        message: "You can only undo when you are playing.".to_owned(),
+                        message: "You can only undo when you are playing or it's game over.".to_owned(),
                     });
                 }else {
+                    let prev_outcome = game.outcome();
                     if let Err(e) = game.undo(moves) {
                         send_to_sender!(ChessUpdate::UndoMovesFailedResponse {
                             message: format!("Denied by engine: {}", e),
                         });
                     }else {
+                        let new_outcome = game.outcome();
+                        if prev_outcome != new_outcome {
+                            send_to_everyone!(ChessUpdate::Outcome {
+                                outcome: new_outcome
+                            });
+                        }
                         // Select current player and update board
                         send_to_everyone!(ChessUpdate::PlayerSwitch {
                             player: game.turn(),
@@ -361,10 +368,11 @@ pub async fn create_bot<T: Searcher>(
 
     task::spawn(async move {
         info!("Bot spawned for {}", me);
+        let mut current_outcome: Option<ChessOutcome> = None;
         while let Some(update) = update_rx.recv().await {
             match update {
                 ChessUpdate::PlayerSwitch { player, ref fen } => {
-                    if player == me {
+                    if player == me && current_outcome.is_none() {
                         let board = pleco::Board::from_fen(fen)
                             .expect("Bot failed to parse the provided fen");
 
@@ -400,8 +408,11 @@ pub async fn create_bot<T: Searcher>(
                 ChessUpdate::Outcome { outcome } => {
                     if outcome.is_some() {
                         info!("Bot detected that the game ended");
-                        break;
+                    //break;
+                    } else {
+                        info!("Game continues. Bot will continue playing.");
                     }
+                    current_outcome = outcome;
                 }
                 _ => {}
             }

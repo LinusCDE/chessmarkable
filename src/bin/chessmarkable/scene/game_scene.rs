@@ -111,9 +111,6 @@ pub struct GameScene {
     /// May be above zero when a fen was imported. Used to prevent panic on undo.
     game_mode: GameMode,
     first_draw: bool,
-    /// Likely because it's currently the turn of the bot
-    ignore_user_moves: bool,
-
     back_button_hitbox: Option<mxcfb_rect>,
     undo_button_hitbox: Option<mxcfb_rect>,
     full_refresh_button_hitbox: Option<mxcfb_rect>,
@@ -141,7 +138,6 @@ pub struct GameScene {
     pub back_button_pressed: bool,
     /// Do a full screen refresh on next draw
     force_full_refresh: Option<SystemTime>,
-    last_checkmate_check: SystemTime,
     draw_game_bottom_info: Option<GameBottomInfo>,
     draw_game_bottom_info_delay_until: Option<SystemTime>,
     draw_game_bottom_info_last_rect: Option<mxcfb_rect>,
@@ -270,7 +266,6 @@ impl GameScene {
         Self {
             board: Board::default(), // Temporary default (usually stays that but will change when having a custom fen)
             first_draw: true,
-            ignore_user_moves: false,
             game_mode,
             piece_hitboxes,
             square_size,
@@ -293,7 +288,6 @@ impl GameScene {
             full_refresh_button_hitbox: None,
             back_button_pressed: false,
             force_full_refresh: None,
-            last_checkmate_check: SystemTime::now(),
             draw_game_bottom_info_delay_until: Some(SystemTime::now() + Duration::from_secs(2)),
             draw_game_bottom_info: Some(GameBottomInfo::Info("White starts".to_owned())),
             draw_game_bottom_info_last_rect: None,
@@ -327,6 +321,8 @@ impl GameScene {
     }
 
     fn handle_outcome(&mut self, outcome: Option<ChessOutcome>) {
+        debug!("Outcome: {:?}", outcome);
+
         if let Some(outcome) = outcome {
             if let ChessOutcome::Checkmate { winner } = outcome {
                 if self.is_game_over {
@@ -511,10 +507,6 @@ impl GameScene {
         }
     }
 
-    fn perform_move(&mut self, bit_move: BitMove) -> Result<()> {
-        Ok(())
-    }
-
     fn clear_move_hints(&mut self) {
         for last_move_hint in &self.move_hints {
             self.redraw_squares.insert(last_move_hint.clone());
@@ -676,31 +668,36 @@ impl GameScene {
                 ChessUpdate::PlayerSwitch { player, ref fen } => {
                     self.update_board(fen);
                     // TODO: Better message depending on game mode
-                    let message = if !self.is_local_user(player) {
-                        None
-                    } else {
-                        if !self.is_local_user(player.other_player()) {
-                            Some("It's your turn.".to_owned())
+                    if !self.is_game_over {
+                        let message = if !self.is_local_user(player) {
+                            None
                         } else {
-                            Some(format!("It's {}'s turn.", player))
-                        }
-                    };
+                            if !self.is_local_user(player.other_player()) {
+                                Some("It's your turn.".to_owned())
+                            } else {
+                                Some(format!("It's {}'s turn.", player))
+                            }
+                        };
 
-                    if let Some(message) = message {
-                        self.show_bottom_game_info(GameBottomInfo::Info(message), None, None);
+                        if let Some(message) = message {
+                            self.show_bottom_game_info(GameBottomInfo::Info(message), None, None);
+                        }
                     }
                 }
-                ChessUpdate::MovesUndone { who, moves } => self.show_bottom_game_info(
-                    GameBottomInfo::Info(format!("{} undid {} move(s).", who, moves)),
-                    None,
-                    Some(Duration::from_secs(3)),
-                ),
+                ChessUpdate::MovesUndone { who, moves } => {
+                    self.show_bottom_game_info(
+                        GameBottomInfo::Info(format!("{} undid {} move(s).", who, moves)),
+                        None,
+                        Some(Duration::from_secs(3)),
+                    );
+                    self.clear_last_moved_hints();
+                }
                 ChessUpdate::UndoMovesFailedResponse { message } => self.show_bottom_game_info(
                     GameBottomInfo::Error(format!("Undo failed: {}", message)),
                     None,
                     Some(Duration::from_secs(10)),
                 ),
-                ChessUpdate::CurrentTotalMovesReponse { .. } => {} // Not interesting atm
+                ChessUpdate::CurrentTotalMovesReponse { .. } => {}
             }
         }
     }
@@ -730,40 +727,48 @@ impl Scene for GameScene {
                         if self.undo_button_hitbox.is_some()
                             && Canvas::is_hitting(finger.pos, self.undo_button_hitbox.unwrap())
                         {
-                            if self.ignore_user_moves {
-                                warn!("Can't undo while player is supposed to play (bot is probably playing)");
+                            let undo_count: u16 = if self.game_mode == GameMode::PvP {
+                                1
                             } else {
-                                let undo_count: u16 = if self.game_mode == GameMode::PvP {
+                                if let Player::Black = self.board.turn().into() {
                                     1
                                 } else {
-                                    if let Player::Black = self.board.turn().into() {
-                                        1
+                                    2
+                                }
+                            };
+                            let sender = if self.is_game_over {
+                                // Find any player to send the event on
+                                if let Some(ref sender) = self.black_request_sender {
+                                    Some(sender.clone())
+                                } else {
+                                    if let Some(ref sender) = self.white_request_sender {
+                                        Some(sender.clone())
                                     } else {
-                                        2
+                                        None
                                     }
-                                };
-                                let sender = match self.board.turn().into() {
+                                }
+                            } else {
+                                // Only undo when own turn
+                                match self.board.turn().into() {
                                     Player::Black => self.black_request_sender.clone(),
                                     Player::White => self.white_request_sender.clone(),
-                                };
-                                if sender.is_none() {
-                                    error!("Undo failed because it cant be sent (not any local players turn).");
-                                    self.show_bottom_game_info(
-                                        GameBottomInfo::Info(
-                                            "You can't undo right now.".to_owned(),
-                                        ),
-                                        None,
-                                        Some(Duration::from_secs(3)),
-                                    );
-                                } else {
-                                    let mut sender = sender.unwrap();
-                                    self.runtime.spawn(async move {
-                                        sender
-                                            .send(ChessRequest::UndoMoves { moves: undo_count })
-                                            .await
-                                            .ok();
-                                    });
                                 }
+                            };
+                            if sender.is_none() {
+                                error!("Undo failed because it cant be sent (not any local players turn).");
+                                self.show_bottom_game_info(
+                                    GameBottomInfo::Info("You can't undo right now.".to_owned()),
+                                    None,
+                                    Some(Duration::from_secs(3)),
+                                );
+                            } else {
+                                let mut sender = sender.unwrap();
+                                self.runtime.spawn(async move {
+                                    sender
+                                        .send(ChessRequest::UndoMoves { moves: undo_count })
+                                        .await
+                                        .ok();
+                                });
                             }
                         }
                         if self.full_refresh_button_hitbox.is_some()
@@ -773,7 +778,7 @@ impl Scene for GameScene {
                             )
                         {
                             self.force_full_refresh = Some(SystemTime::now());
-                        } else if !self.ignore_user_moves && !self.is_game_over {
+                        } else if !self.is_game_over {
                             for x in 0..8 {
                                 for y in 0..8 {
                                     if Canvas::is_hitting(finger.pos, self.piece_hitboxes[x][y]) {
