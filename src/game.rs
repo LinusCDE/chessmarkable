@@ -1,8 +1,9 @@
 pub use crate::{Player, Square};
 use anyhow::Result;
 pub use pleco::{BitMove, Board, File, Piece, PieceType, Player as PlecoPlayer, Rank, SQ};
+use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ChessOutcome {
     Checkmate { winner: Player },
     Stalemate,

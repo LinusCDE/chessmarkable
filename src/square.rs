@@ -6,6 +6,9 @@ use serde_string_derive::SerdeDisplayFromStr;
 use std::fmt;
 use thiserror::Error;
 
+const FILES: &[char] = &['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+const RANKS: &[char] = &['1', '2', '3', '4', '5', '6', '7', '8'];
+
 #[derive(Error, Debug)]
 pub enum SquareFormatError {
     #[error("The square in not within the acceptable range (found: {found}, expected: between A1 and H8)")]
@@ -53,11 +56,11 @@ impl Square {
     }
 
     pub fn x(&self) -> u8 {
-        self.file() as u8
+        self.sq.file() as u8
     }
 
     pub fn y(&self) -> u8 {
-        self.rank() as u8
+        self.sq.rank() as u8
     }
 }
 
@@ -77,9 +80,6 @@ impl std::str::FromStr for Square {
     type Err = SquareFormatError;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        const FILES: &[char] = &['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-        const RANKS: &[char] = &['1', '2', '3', '4', '5', '6', '7', '8'];
-
         let chars: Vec<_> = s.chars().collect();
         if (chars.len() != 2) {
             return Err(SquareFormatError::InvalidLength {
@@ -106,6 +106,17 @@ impl std::str::FromStr for Square {
         };
 
         Ok(Square::new(file_index, rank_index).unwrap())
+    }
+}
+
+impl fmt::Display for Square {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{}",
+            FILES[self.x() as usize],
+            RANKS[self.y() as usize]
+        )
     }
 }
 

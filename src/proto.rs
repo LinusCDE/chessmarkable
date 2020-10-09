@@ -37,9 +37,7 @@ impl ChessRequest {
         }
     }
 }
-
-//#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ChessUpdate {
     /// Usually the Response to `ChessRequest::CurrentBoard`.
     /// But may be sent at other points to synchronize state as well.
