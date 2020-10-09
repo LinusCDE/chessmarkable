@@ -1,19 +1,22 @@
 use crate::game::ChessGame;
-pub use crate::game::{ChessOutcome, Player, SQ};
+use crate::game::Player as PlecoPlayer;
+pub use crate::game::{ChessOutcome, SQ};
+use crate::{Player, Square};
 use anyhow::{Context, Result};
 use pleco::tools::Searcher;
+use serde::{Deserialize, Serialize};
 use std::thread;
 use std::time::{Duration, SystemTime};
 use tokio::stream::StreamExt;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum ChessRequest {
     CurrentBoard,
     CurrentTotalMoves,
     CurrentOutcome,
-    MovePiece { source: SQ, destination: SQ },
+    MovePiece { source: Square, destination: Square },
     Abort { message: String },
 }
 
@@ -36,8 +39,8 @@ pub enum ChessUpdate {
     },
     PlayerMovedAPiece {
         player: Player,
-        moved_piece_source: SQ,
-        moved_piece_destination: SQ,
+        moved_piece_source: Square,
+        moved_piece_destination: Square,
     },
     /// Signal that a new player is now playing. The boar is the
     /// most recent one which can also be retreived by requesting a
@@ -55,7 +58,7 @@ pub enum ChessUpdate {
         outcome: Option<ChessOutcome>,
     },
     PossibleMoves {
-        possible_moves: Vec<(SQ /* From */, SQ /* To */)>,
+        possible_moves: Vec<(Square /* From */, Square /* To */)>,
     },
     /// Something went wrong and the server wants to tell you about it
     GenericErrorResponse {
@@ -149,11 +152,11 @@ pub async fn create_game(
     let possible_moves: Vec<_> = game
         .possible_moves()
         .iter()
-        .map(|bit_move| (bit_move.get_src(), bit_move.get_dest()))
+        .map(|bit_move| (bit_move.get_src().into(), bit_move.get_dest().into()))
         .collect();
     match game.turn() {
-        Player::White => white_tx.clone(),
-        Player::Black => black_tx.clone(),
+        PlecoPlayer::White => white_tx.clone(),
+        PlecoPlayer::Black => black_tx.clone(),
     }
     .send(ChessUpdate::PossibleMoves { possible_moves })
     .await
@@ -253,7 +256,10 @@ pub async fn create_game(
                                 possible_moves: game
                                     .possible_moves()
                                     .iter()
-                                    .map(|bit_move| (bit_move.get_src(), bit_move.get_dest()))
+                                    .map(|bit_move| (
+                                        bit_move.get_src().into(),
+                                        bit_move.get_dest().into()
+                                    ))
                                     .collect(),
                             });
                         }
@@ -266,7 +272,7 @@ pub async fn create_game(
                     }
                 };
             }
-            ChessRequest::Abort { message: String } => {
+            ChessRequest::Abort { .. /* message */ } => {
                 // TODO
             }
             _ => {
@@ -315,8 +321,8 @@ pub async fn create_bot<T: Searcher>(
 
                         request_tx
                             .send(ChessRequest::MovePiece {
-                                source: bit_move.get_src(),
-                                destination: bit_move.get_dest(),
+                                source: bit_move.get_src().into(),
+                                destination: bit_move.get_dest().into(),
                             })
                             .await
                             .expect("Bot failed to send move");

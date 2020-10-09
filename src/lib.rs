@@ -5,6 +5,14 @@
 extern crate anyhow;
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate serde;
+
+mod player;
+mod square;
 
 pub mod game;
 pub mod proto;
+
+pub use player::Player;
+pub use square::Square;

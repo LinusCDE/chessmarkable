@@ -1,12 +1,14 @@
 [package]
 name = "chessmarkable"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Linus <linus@cosmos-ink.net>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+serde_string_derive = { path = "serde_string_derive" }
+
 anyhow = "1.0.33"
 clap = "3.0.0-beta.1"
 downcast-rs = "1.2"
@@ -15,6 +17,9 @@ fxhash = "0.2"
 lazy_static = "1.4.0"
 log = "0.4.11"
 pleco = "0.5.0"
+serde = { version = "1.0.116", features = [ "derive" ] }
+serde_json = "1.0.58"
+thiserror = "1.0.21"
 
 [dependencies.libremarkable]
 git = "https://github.com/LinusCDE/libremarkable.git"
@@ -30,6 +35,3 @@ features = [
     "sync",
     "time"
 ]
-
-[lib]
-path = "src/lib/lib.rs"

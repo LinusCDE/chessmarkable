@@ -1,5 +1,6 @@
+pub use crate::{Player, Square};
 use anyhow::Result;
-pub use pleco::{BitMove, Board, File, Piece, PieceType, Player, Rank, SQ};
+pub use pleco::{BitMove, Board, File, Piece, PieceType, Player as PlecoPlayer, Rank, SQ};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ChessOutcome {
@@ -53,7 +54,7 @@ impl ChessGame {
     }
 
     pub fn turn(&self) -> Player {
-        self.board.turn()
+        self.board.turn().into()
     }
 
     pub fn outcome(&self) -> Option<ChessOutcome> {
@@ -95,17 +96,17 @@ impl ChessGame {
         Ok(())
     }
 
-    fn piece_on_square(&self, player: Player, square: SQ) -> bool {
+    fn piece_on_square(&self, player: Player, square: Square) -> bool {
         self.board
-            .get_occupied_player(self.board.turn())
+            .get_occupied_player(player.into())
             .into_iter()
-            .any(|sq| sq == square)
+            .any(|sq| sq == *square)
     }
 
     fn update_game_outcome(&mut self) {
         if self.board.checkmate() {
             self.outcome = Some(ChessOutcome::Checkmate {
-                winner: self.board.turn().other_player(),
+                winner: self.turn().other_player(),
             });
         } else if self.board.stalemate() {
             self.outcome = Some(ChessOutcome::Stalemate);
@@ -117,9 +118,9 @@ impl ChessGame {
         }
     }
 
-    pub fn move_piece(&mut self, source: SQ, destination: SQ) -> Result<()> {
+    pub fn move_piece(&mut self, source: Square, destination: Square) -> Result<()> {
         ensure!(
-            self.piece_on_square(self.board.turn(), source),
+            self.piece_on_square(self.turn(), source),
             "The playing player has no piece on the source square!"
         );
         ensure!(source != destination, "Move does not actually move");

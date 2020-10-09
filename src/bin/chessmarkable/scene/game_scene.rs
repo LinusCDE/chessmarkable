@@ -3,11 +3,12 @@ use crate::canvas::*;
 use crate::CLI_OPTS;
 use anyhow::Result;
 use chessmarkable::proto::*;
+use chessmarkable::{Player, Square};
 use fxhash::{FxHashMap, FxHashSet};
 use libremarkable::image;
 use libremarkable::input::{multitouch, InputEvent};
 use pleco::bot_prelude::*;
-use pleco::{BitMove, Board, File, Piece, Player, Rank, SQ};
+use pleco::{BitMove, Board, Piece};
 use std::time::{Duration, SystemTime};
 use tokio::runtime;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
@@ -85,33 +86,9 @@ const ALL_PIECES: &[Piece] = &[
     Piece::WhitePawn,
 ];
 
-fn to_square(x: usize, y: usize) -> SQ {
-    let x = x as u8;
-    let y = y as u8;
-
-    let file = match x {
-        x if x == File::A as u8 => File::A,
-        x if x == File::B as u8 => File::B,
-        x if x == File::C as u8 => File::C,
-        x if x == File::D as u8 => File::D,
-        x if x == File::E as u8 => File::E,
-        x if x == File::F as u8 => File::F,
-        x if x == File::G as u8 => File::G,
-        x if x == File::H as u8 => File::H,
-        _ => panic!("Invalid file for pos"),
-    };
-    let rank = match y {
-        y if y == Rank::R1 as u8 => Rank::R1,
-        y if y == Rank::R2 as u8 => Rank::R2,
-        y if y == Rank::R3 as u8 => Rank::R3,
-        y if y == Rank::R4 as u8 => Rank::R4,
-        y if y == Rank::R5 as u8 => Rank::R5,
-        y if y == Rank::R6 as u8 => Rank::R6,
-        y if y == Rank::R7 as u8 => Rank::R7,
-        y if y == Rank::R8 as u8 => Rank::R8,
-        _ => panic!("Invalid rank for pos"),
-    };
-    SQ::make(file, rank)
+#[inline]
+fn to_square(x: usize, y: usize) -> Square {
+    Square::new(x, y).expect("to_square() failed")
 }
 
 enum GameBottomInfo {
@@ -141,7 +118,7 @@ pub struct GameScene {
     full_refresh_button_hitbox: Option<mxcfb_rect>,
     piece_hitboxes: Vec<Vec<mxcfb_rect>>,
     /// The squared that were visually affected and should be redrawn
-    redraw_squares: FxHashSet<SQ>,
+    redraw_squares: FxHashSet<Square>,
     /// If the amount of changes squares cannot be easily decided this
     /// is a easy way to update everything. Has a performance hit though.
     redraw_all_squares: bool,
@@ -154,12 +131,12 @@ pub struct GameScene {
     overlay_padding: u32,
     img_piece_selected: image::DynamicImage,
     img_piece_movehint: image::DynamicImage,
-    selected_square: Option<SQ>,
-    move_hints: FxHashSet<SQ>,
-    last_move_from: Option<SQ>,
-    last_move_to: Option<SQ>,
+    selected_square: Option<Square>,
+    move_hints: FxHashSet<Square>,
+    last_move_from: Option<Square>,
+    last_move_to: Option<Square>,
     /// Remember a press to decide whether to show options or do a move at once
-    finger_down_square: Option<SQ>,
+    finger_down_square: Option<Square>,
     pub back_button_pressed: bool,
     /// Do a full screen refresh on next draw
     force_full_refresh: Option<SystemTime>,
@@ -173,7 +150,7 @@ pub struct GameScene {
     black_request_sender: Option<Sender<ChessRequest>>,
     white_update_receiver: Option<Receiver<ChessUpdate>>,
     black_update_receiver: Option<Receiver<ChessUpdate>>,
-    possible_moves: Vec<(SQ, SQ)>,
+    possible_moves: Vec<(Square, Square)>,
     runtime: runtime::Runtime,
 }
 
@@ -449,7 +426,7 @@ impl GameScene {
                 //
                 // Piece
                 //
-                let piece = self.board.piece_at_sq(square);
+                let piece = self.board.piece_at_sq(*square);
                 if piece != Piece::None {
                     // Actual piece here
                     let piece_img = self
@@ -536,7 +513,7 @@ impl GameScene {
         self.move_hints.clear();
     }
 
-    fn set_move_hints(&mut self, square: SQ) {
+    fn set_move_hints(&mut self, square: Square) {
         self.clear_move_hints();
 
         for (src, dest) in self.possible_moves.iter() {
@@ -547,13 +524,13 @@ impl GameScene {
         }
     }
 
-    fn on_user_move(&mut self, src: SQ, dest: SQ) {
+    fn on_user_move(&mut self, src: Square, dest: Square) {
         self.selected_square = None;
         self.finger_down_square = None;
         self.clear_move_hints();
         self.clear_last_moved_hints();
 
-        let sender = match self.board.turn() {
+        let sender = match self.board.turn().into() {
             Player::Black => self.black_request_sender.clone(),
             Player::White => self.white_request_sender.clone(),
         };
@@ -578,7 +555,7 @@ impl GameScene {
                 .ok();
         });
 
-        if !self.is_local_user(other_player) {
+        if !self.is_local_user(other_player.into()) {
             self.show_bottom_game_info(
                 GameBottomInfo::Info("Waiting on your opponent...".to_owned()),
                 Some(Duration::from_millis(
@@ -619,8 +596,8 @@ impl GameScene {
         for x in 0..8 {
             for y in 0..8 {
                 let sq = to_square(x, y);
-                let old_piece = self.board.piece_at_sq(sq);
-                let new_piece = new_board.piece_at_sq(sq);
+                let old_piece = self.board.piece_at_sq(*sq);
+                let new_piece = new_board.piece_at_sq(*sq);
 
                 if old_piece != new_piece {
                     self.redraw_squares.insert(sq);
