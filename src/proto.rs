@@ -294,6 +294,7 @@ pub async fn create_game(
             }
             ChessRequest::Abort { .. /* message */ } => {
                 game.player_left(sender);
+                break;
             },
             ChessRequest::UndoMoves { moves } => {
                 let player_allowed = match sender {
