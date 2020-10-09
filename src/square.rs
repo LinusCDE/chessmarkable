@@ -122,32 +122,3 @@ impl std::ops::DerefMut for Square {
         &mut self.sq
     }
 }
-
-/*
-impl Serialize for Square {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&self.to_string())
-    }
-}
-
-impl<'de> serde::de::Visitor<'de> for Square {
-    // The type that our Visitor is going to produce.
-    type Value = Square;
-
-    // Format a message stating what data this Visitor expects to receive.
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a chess square donated with a letter and a number (e.g. A1)")
-    }
-
-    fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        v.parse()
-            .map_err(|e| serde::de::Error::custom::<<Square as std::str::FromStr>::Err>(e))
-    }
-}
-*/

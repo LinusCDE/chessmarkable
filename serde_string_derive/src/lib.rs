@@ -1,6 +1,6 @@
 /// TODO: Polish, rename properly and publish
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{parse_macro_input, DeriveInput, Lit, Meta, MetaNameValue};
 
 /// This macro can be derives from.
@@ -43,6 +43,9 @@ pub fn serde_display_fromstr(input: TokenStream) -> TokenStream {
 
     // Build the output (gets appended after the derived struct/enum)
     let name = input.ident;
+
+    let accompanying_visitor = format_ident!("{}Visitor", name);
+
     let serde_impls = quote! {
         // --------------------------------------------------
         // Appended by derive SerdeDisplayFromStr
@@ -56,7 +59,9 @@ pub fn serde_display_fromstr(input: TokenStream) -> TokenStream {
             }
         }
 
-        impl<'de> serde::de::Visitor<'de> for #name {
+        struct #accompanying_visitor { }
+
+        impl<'de> serde::de::Visitor<'de> for #accompanying_visitor {
             // The type that our Visitor is going to produce.
             type Value = #name;
 
@@ -72,6 +77,15 @@ pub fn serde_display_fromstr(input: TokenStream) -> TokenStream {
                 // Get struct/enum from String (FromStr trait expected)
                 v.parse()
                     .map_err(|e| serde::de::Error::custom::<<#name as std::str::FromStr>::Err>(e))
+            }
+        }
+
+        impl<'de> serde::Deserialize<'de> for #name {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                deserializer.deserialize_any(#accompanying_visitor { })
             }
         }
         // --------------------------------------------------

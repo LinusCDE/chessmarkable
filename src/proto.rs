@@ -11,7 +11,8 @@ use tokio::stream::StreamExt;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task;
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ChessRequest {
     CurrentBoard,
     CurrentTotalMoves,
