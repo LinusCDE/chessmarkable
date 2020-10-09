@@ -16,6 +16,7 @@ pub struct ChessConfig {
     pub starting_fen: Option<String>,
     pub can_black_undo: bool,
     pub can_white_undo: bool,
+    pub allow_undo_after_loose: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -295,18 +296,24 @@ pub async fn create_game(
                 game.player_left(sender);
             },
             ChessRequest::UndoMoves { moves } => {
-                let allowed = match sender {
+                let player_allowed = match sender {
                     Player::Black => config.can_black_undo,
                     Player::White => config.can_white_undo,
                 };
-                if ! allowed {
+                if ! player_allowed {
                     send_to_sender!(ChessUpdate::UndoMovesFailedResponse {
                         message: "You are not permitted to do that in this game.".to_owned(),
                     });
-                } else if game.turn() != sender && game.outcome().is_none() {
-                    send_to_sender!(ChessUpdate::UndoMovesFailedResponse {
-                        message: "You can only undo when you are playing or it's game over.".to_owned(),
+                } else if !(game.turn() == sender && game.outcome().is_none() || game.outcome().is_some() && config.allow_undo_after_loose) {
+                    if config.allow_undo_after_loose {
+                        send_to_sender!(ChessUpdate::UndoMovesFailedResponse {
+                            message: "You can only undo when you are playing or it's game over.".to_owned(),
+                        });
+                    }else {
+                        send_to_sender!(ChessUpdate::UndoMovesFailedResponse {
+                            message: "You can only undo when you are playing.".to_owned(),
                     });
+                    }
                 }else {
                     let prev_outcome = game.outcome();
                     if let Err(e) = game.undo(moves) {

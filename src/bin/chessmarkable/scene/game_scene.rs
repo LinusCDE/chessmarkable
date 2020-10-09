@@ -228,6 +228,7 @@ impl GameScene {
                     starting_fen: CLI_OPTS.intial_fen.clone(),
                     can_black_undo: true,
                     can_white_undo: true,
+                    allow_undo_after_loose: true,
                 },
             ));
 
@@ -254,8 +255,9 @@ impl GameScene {
                 stubbed_spectator(),
                 ChessConfig {
                     starting_fen: CLI_OPTS.intial_fen.clone(),
-                    can_black_undo: true,
+                    can_black_undo: false,
                     can_white_undo: true,
+                    allow_undo_after_loose: true,
                 },
             ));
 
