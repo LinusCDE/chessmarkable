@@ -753,9 +753,13 @@ impl Scene for GameScene {
                                                 self.on_user_move(finger_down_square, new_square);
                                             } else {
                                                 // Mark square
-                                                self.selected_square = Some(new_square);
-                                                self.redraw_squares.insert(new_square.clone());
-                                                self.set_move_hints(new_square);
+                                                if self.board.piece_at_sq(*new_square)
+                                                    != Piece::None
+                                                {
+                                                    self.selected_square = Some(new_square);
+                                                    self.redraw_squares.insert(new_square.clone());
+                                                    self.set_move_hints(new_square);
+                                                }
                                             }
                                         };
                                     }
