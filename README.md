@@ -1,7 +1,7 @@
 # chessMarkable
 
 [![rm1](https://img.shields.io/badge/rM1-supported-green)](https://remarkable.com/store/remarkable)
-[![rm2](https://img.shields.io/badge/rM2-unsupported-red)](https://remarkable.com/store/remarkable-2)
+[![rm2](https://img.shields.io/badge/rM2-only_with_shim-orange)](https://remarkable.com/store/remarkable-2)
 [![opkg](https://img.shields.io/badge/OPKG-chessmarkable-blue)](https://github.com/toltec-dev/toltec)
 [![launchers](https://img.shields.io/badge/Launchers-supported-green)](https://github.com/reHackable/awesome-reMarkable#launchers)
 [![Mentioned in Awesome reMarkable](https://awesome.re/mentioned-badge.svg)](https://github.com/reHackable/awesome-reMarkable)
@@ -50,7 +50,7 @@ The reverse can also be done. Running chessmarkable with `-i` set to a FEN, will
 
 ## reMarkable 2 support
 
-As of now, the new framebuffer is not yet figured out. As soon as that happens and libremarkable gets updated, I can fix this sw to work on the rM 2.
+The inputs are fully working on the reMarkable 2. The framebuffer is still a work in progress, however it can be run by using [this shim](https://github.com/ddvk/remarkable2-framebuffer#framebuffer-client-shim). The game may be a bit less performant with it as not all refresh modes are figured out, but it'll work.
 
 ## Credit
 
