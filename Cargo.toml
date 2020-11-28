@@ -12,21 +12,21 @@ serde_string_derive = { path = "serde_string_derive" }
 anyhow = "1.0.33"
 clap = "3.0.0-beta.1"
 downcast-rs = "1.2"
-env_logger = "0.7.1"
+env_logger = "0.8"
 fxhash = "0.2"
-lazy_static = "1.4.0"
-log = "0.4.11"
-pleco = "0.5.0"
-serde = { version = "1.0.116", features = [ "derive" ] }
-serde_json = "1.0.58"
-thiserror = "1.0.21"
+lazy_static = "1.4"
+log = "0.4"
+pleco = "0.5"
+serde = { version = "1", features = [ "derive" ] }
+serde_json = "1.0"
+thiserror = "1.0"
 
 [dependencies.libremarkable]
 git = "https://github.com/canselcik/libremarkable.git"
 rev = "3aeaa21d42f1760672c00a2cad0c876b77b302c0"
 
 [dependencies.tokio]
-version = "0.2.22"
+version = "0.2"
 features = [
     "blocking",
     "rt-core",
