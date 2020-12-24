@@ -22,8 +22,8 @@ serde_json = "1.0"
 thiserror = "1.0"
 
 [dependencies.libremarkable]
-git = "https://github.com/canselcik/libremarkable.git"
-rev = "3aeaa21d42f1760672c00a2cad0c876b77b302c0"
+git = "https://github.com/LinusCDE/libremarkable.git"
+rev = "4f003f1d44fd3c3839dd05b4f535a7aa184546ae"
 
 [dependencies.tokio]
 version = "0.2"
