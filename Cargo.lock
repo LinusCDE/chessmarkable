@@ -301,8 +301,9 @@ dependencies = [
 
 [[package]]
 name = "evdev"
-version = "0.10.1"
-source = "git+https://github.com/LinusCDE/evdev.git?rev=43fb0b33994dba667ab3f1c107b7393ac3166ffe#43fb0b33994dba667ab3f1c107b7393ac3166ffe"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8ecedf6c67d3b689bd47017bb9211b56c734da0203d3aefcbf18f8eb68091e7"
 dependencies = [
  "bitflags 0.8.2",
  "fixedbitset",
@@ -506,8 +507,9 @@ checksum = "2448f6066e80e3bfc792e9c98bf705b4b0fc6e8ef5b43e5889aff0eaa9c58743"
 
 [[package]]
 name = "libremarkable"
-version = "0.4.1"
-source = "git+https://github.com/LinusCDE/libremarkable.git?rev=4f003f1d44fd3c3839dd05b4f535a7aa184546ae#4f003f1d44fd3c3839dd05b4f535a7aa184546ae"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "585e378b48f75db77b3e2f480b2f1d9c4308493967b5494f11cbb7b7dba07d01"
 dependencies = [
  "aabb-quadtree",
  "atomic",
