@@ -58,10 +58,20 @@ lazy_static! {
 }
 
 fn main() {
-    if env::var("RUST_LOG").is_err() {
-        env::set_var("RUST_LOG", "INFO");
-    }
+    let show_log_info = if env::var("RUST_LOG").is_err() {
+        env::set_var("RUST_LOG", "DEBUG");
+        true
+    } else {
+        false
+    };
     env_logger::init();
+    if show_log_info {
+        debug!(concat!(
+            "Debug Mode is enabled by default.\n",
+            "To change this, set the env \"RUST_LOG\" something else ",
+            "(e.g. info, warn, error or comma separated list of \"[module=]<level>\")."
+        ));
+    }
 
     let only_exit_to_xochitl = if !CLI_OPTS.kill_xochitl {
         false
