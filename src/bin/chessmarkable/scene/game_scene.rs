@@ -242,7 +242,9 @@ impl GameScene {
             let (white_request_tx, white_request_rx) = channel::<ChessRequest>(256);
 
             // Use multithreaded algo when not rM 1
-            let bot = if libremarkable::device::CURRENT_DEVICE.model == libremarkable::device::Model::Gen1 {
+            let bot = if libremarkable::device::CURRENT_DEVICE.model
+                == libremarkable::device::Model::Gen1
+            {
                 debug!("The Bot will use the AlphaBeta algorithm (singlethreaded)");
                 runtime
                 .block_on(create_bot::<AlphaBetaSearcher>(
@@ -251,7 +253,7 @@ impl GameScene {
                     Duration::from_millis(CLI_OPTS.bot_reaction_delay.into()),
                 ))
                 .expect("Failed to initialize bot task")
-            }else {
+            } else {
                 debug!("The Bot will use the Jamboree algorithm (multithreaded)");
                 runtime
                 .block_on(create_bot::<JamboreeSearcher>(
