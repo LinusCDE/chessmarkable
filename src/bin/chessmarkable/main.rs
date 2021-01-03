@@ -120,13 +120,16 @@ fn update(
         }
     } else if let Some(main_menu_scene) = scene.downcast_ref::<MainMenuScene>() {
         if main_menu_scene.play_pvp_button_pressed {
-            return Box::new(GameScene::new(GameMode::PvP));
+            return Box::new(GameScene::new(
+                GameMode::PvP,
+                main_menu_scene.pvp_piece_rotation_enabled,
+            ));
         } else if main_menu_scene.play_easy_button_pressed {
-            return Box::new(GameScene::new(GameMode::EasyBot));
+            return Box::new(GameScene::new(GameMode::EasyBot, false));
         } else if main_menu_scene.play_normal_button_pressed {
-            return Box::new(GameScene::new(GameMode::NormalBot));
+            return Box::new(GameScene::new(GameMode::NormalBot, false));
         } else if main_menu_scene.play_hard_button_pressed {
-            return Box::new(GameScene::new(GameMode::HardBot));
+            return Box::new(GameScene::new(GameMode::HardBot, false));
         } else if main_menu_scene.exit_xochitl_button_pressed {
             canvas.clear();
             canvas.update_full();

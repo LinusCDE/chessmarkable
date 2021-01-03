@@ -126,6 +126,7 @@ pub struct GameScene {
     img_piece_moved_to: image::DynamicImage,
     piece_padding: u32,
     img_pieces: FxHashMap</* Piece */ char, image::DynamicImage>,
+    img_pieces_rotated: FxHashMap</* Piece */ char, image::DynamicImage>,
     overlay_padding: u32,
     img_piece_selected: image::DynamicImage,
     img_piece_movehint: image::DynamicImage,
@@ -133,6 +134,8 @@ pub struct GameScene {
     move_hints: FxHashSet<Square>,
     last_move_from: Option<Square>,
     last_move_to: Option<Square>,
+    pvp_piece_rotation_enabled: bool,
+    pieces_rotated: bool,
     /// Remember a press to decide whether to show options or do a move at once
     finger_down_square: Option<Square>,
     pub back_button_pressed: bool,
@@ -152,7 +155,7 @@ pub struct GameScene {
 }
 
 impl GameScene {
-    pub fn new(game_mode: GameMode) -> Self {
+    pub fn new(game_mode: GameMode, pvp_piece_rotation_enabled: bool) -> Self {
         // Size of board
         let square_size = DISPLAYWIDTH as u32 / 8;
         let piece_padding = square_size / 10;
@@ -185,6 +188,11 @@ impl GameScene {
                 ),
             );
         }
+        // Create resized images
+        let mut img_pieces_rotated: FxHashMap<char, image::DynamicImage> = Default::default();
+        img_pieces.iter().for_each(|(piece, img)| {
+            img_pieces_rotated.insert(piece.clone(), img.rotate180());
+        });
         let img_piece_selected = IMG_PIECE_SELECTED.resize(
             square_size - overlay_padding * 2,
             square_size - overlay_padding * 2,
@@ -294,10 +302,13 @@ impl GameScene {
             last_move_to: None,
             finger_down_square: None,
             img_pieces,
+            img_pieces_rotated,
             img_piece_selected,
             img_piece_movehint,
             img_piece_moved_from,
             img_piece_moved_to,
+            pvp_piece_rotation_enabled,
+            pieces_rotated: false,
             redraw_squares: Default::default(),
             redraw_all_squares: false,
             back_button_hitbox: None,
@@ -452,10 +463,13 @@ impl GameScene {
                 let piece = self.board.piece_at_sq(*square);
                 if piece != Piece::None {
                     // Actual piece here
-                    let piece_img = self
-                        .img_pieces
-                        .get(&piece.character_lossy())
-                        .expect("Failed to find resized piece img!");
+                    let piece_img = if self.pieces_rotated {
+                        &self.img_pieces_rotated
+                    } else {
+                        &self.img_pieces
+                    }
+                    .get(&piece.character_lossy())
+                    .expect("Failed to find resized piece img!");
                     canvas.draw_image(
                         Point2 {
                             x: (bounds.left + self.piece_padding) as i32,
@@ -712,6 +726,19 @@ impl GameScene {
 
                         if let Some(message) = message {
                             self.show_bottom_game_info(GameBottomInfo::Info(message), None, None);
+                        }
+
+                        if self.is_local_user(player) {
+                            if self.pvp_piece_rotation_enabled {
+                                // Rotate when local player black plays
+                                let should_rotate_pieces = player == Player::Black;
+                                if should_rotate_pieces != self.pieces_rotated {
+                                    for (sq, _) in self.board.get_piece_locations() {
+                                        self.redraw_squares.insert(Square::from(sq));
+                                    }
+                                    self.pieces_rotated = should_rotate_pieces;
+                                }
+                            }
                         }
                     }
                 }
