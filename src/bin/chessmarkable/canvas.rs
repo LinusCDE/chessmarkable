@@ -1,7 +1,7 @@
 pub use libremarkable::framebuffer::{
     cgmath::Point2, cgmath::Vector2, common::color, common::mxcfb_rect, common::DISPLAYHEIGHT,
-    common::DISPLAYWIDTH, core::Framebuffer, FramebufferBase, FramebufferDraw, FramebufferIO,
-    FramebufferRefresh,
+    common::DISPLAYWIDTH, core::Framebuffer, storage::rgbimage_from_u8_slice, FramebufferBase,
+    FramebufferDraw, FramebufferIO, FramebufferRefresh,
 };
 use libremarkable::framebuffer::{
     common::display_temp, common::dither_mode, common::waveform_mode, refresh::PartialRefreshMode,
@@ -188,6 +188,22 @@ impl<'a> Canvas<'a> {
     ) -> image::RgbImage {
         let rgba = img.to_rgba();
         let mut rgb = img.to_rgb();
+
+        let orig_rgb888 = rgbimage_from_u8_slice(
+            rgba.width(),
+            rgba.height(),
+            &self
+                .framebuffer_mut()
+                .dump_region(mxcfb_rect {
+                    top: pos.y as u32,
+                    left: pos.x as u32,
+                    width: rgba.width(),
+                    height: rgba.height(),
+                })
+                .unwrap(),
+        )
+        .unwrap();
+
         for (x, y, pixel) in rgba.enumerate_pixels() {
             let color_pix = [
                 pixel[0] as f32 / 255.0,
@@ -195,14 +211,7 @@ impl<'a> Canvas<'a> {
                 pixel[2] as f32 / 255.0,
             ];
             let color_alpha = (255 - pixel[3]) as f32 / 255.0;
-
-            let orig_pixel = self
-                .framebuffer_mut()
-                .read_pixel(Point2 {
-                    x: pos.x as u32 + x as u32,
-                    y: pos.y as u32 + y as u32,
-                })
-                .to_rgb8();
+            let orig_pixel = orig_rgb888.get_pixel(x, y);
             let new_rgb_f32 = image::Rgb([
                 color_pix[0] * (1.0 - color_alpha) + (orig_pixel[0] as f32 / 255.0) * color_alpha,
                 color_pix[1] * (1.0 - color_alpha) + (orig_pixel[1] as f32 / 255.0) * color_alpha,
