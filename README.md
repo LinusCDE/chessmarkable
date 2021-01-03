@@ -8,7 +8,7 @@
 
 A chess game for the reMarkable tablet writting using the [pleco](https://crates.io/crates/pleco) chess library which is a port of [Stockfish].(https://stockfishchess.org/)
 
-<img src="https://transfer.cosmos-ink.net/lH2sG/scr1.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/pGFAe/2.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/LZ9QT/3.jpg" width="30%">
+<img src="https://transfer.cosmos-ink.net/VcnXJ/mainmenu.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/pGFAe/2.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/LZ9QT/3.jpg" width="30%">
 
 ## Controlling
 
