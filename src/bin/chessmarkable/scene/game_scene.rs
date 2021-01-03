@@ -247,21 +247,21 @@ impl GameScene {
             {
                 debug!("The Bot will use the AlphaBeta algorithm (singlethreaded)");
                 runtime
-                .block_on(create_bot::<AlphaBetaSearcher>(
-                    Player::Black,
-                    game_mode as u16,
-                    Duration::from_millis(CLI_OPTS.bot_reaction_delay.into()),
-                ))
-                .expect("Failed to initialize bot task")
+                    .block_on(create_bot::<AlphaBetaSearcher>(
+                        Player::Black,
+                        game_mode as u16,
+                        Duration::from_millis(CLI_OPTS.bot_reaction_delay.into()),
+                    ))
+                    .expect("Failed to initialize bot task")
             } else {
                 debug!("The Bot will use the Jamboree algorithm (multithreaded)");
                 runtime
-                .block_on(create_bot::<JamboreeSearcher>(
-                    Player::Black,
-                    game_mode as u16,
-                    Duration::from_millis(CLI_OPTS.bot_reaction_delay.into()),
-                ))
-                .expect("Failed to initialize bot task")
+                    .block_on(create_bot::<JamboreeSearcher>(
+                        Player::Black,
+                        game_mode as u16,
+                        Duration::from_millis(CLI_OPTS.bot_reaction_delay.into()),
+                    ))
+                    .expect("Failed to initialize bot task")
             };
 
             runtime.spawn(create_game(
@@ -400,6 +400,7 @@ impl GameScene {
     }
 
     fn draw_board(&mut self, canvas: &mut Canvas) -> Vec<mxcfb_rect> {
+        let start = SystemTime::now();
         let mut updated_regions = vec![];
         for x in 0..8 {
             for y in 0..8 {
@@ -504,6 +505,19 @@ impl GameScene {
             updated_regions.clear();
             updated_regions.push(self.full_board_rect());
         }
+
+        let squares = if self.redraw_all_squares {
+            8 * 8
+        } else {
+            self.redraw_squares.len()
+        };
+        let dur = start.elapsed().unwrap();
+        debug!(
+            "{} squares redrawn in {:?} ({:?} per square)",
+            squares,
+            dur,
+            dur / squares as u32
+        );
 
         self.redraw_squares.clear();
         self.redraw_all_squares = false;
