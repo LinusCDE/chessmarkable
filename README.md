@@ -6,7 +6,7 @@
 [![launchers](https://img.shields.io/badge/Launchers-supported-green)](https://github.com/reHackable/awesome-reMarkable#launchers)
 [![Mentioned in Awesome reMarkable](https://awesome.re/mentioned-badge.svg)](https://github.com/reHackable/awesome-reMarkable)
 
-A chess game for the reMarkable tablet writting using the [pleco](https://crates.io/crates/pleco) chess library which is a port of [Stockfish].(https://stockfishchess.org/)
+A chess game for the reMarkable tablet writting using the [pleco](https://crates.io/crates/pleco) chess library which is a port of [Stockfish](https://stockfishchess.org/).
 
 <img src="https://transfer.cosmos-ink.net/VcnXJ/mainmenu.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/pGFAe/2.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/LZ9QT/3.jpg" width="30%">
 
