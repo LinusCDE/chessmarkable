@@ -1,7 +1,7 @@
 # chessMarkable
 
 [![rm1](https://img.shields.io/badge/rM1-supported-green)](https://remarkable.com/store/remarkable)
-[![rm2](https://img.shields.io/badge/rM2-needs_shim_or_launcher-yellow)](https://remarkable.com/store/remarkable-2)
+[![rm2](https://img.shields.io/badge/rM2-supported-green)](https://remarkable.com/store/remarkable-2)
 [![opkg](https://img.shields.io/badge/OPKG-chessmarkable-blue)](https://github.com/toltec-dev/toltec)
 [![launchers](https://img.shields.io/badge/Launchers-supported-green)](https://github.com/reHackable/awesome-reMarkable#launchers)
 [![Mentioned in Awesome reMarkable](https://awesome.re/mentioned-badge.svg)](https://github.com/reHackable/awesome-reMarkable)
@@ -50,9 +50,9 @@ The reverse can also be done. Running chessmarkable with `-i` set to a FEN, will
 
 ## reMarkable 2 support
 
-Chessmarkable supports the input of the reMarkable 2 natively but not the framebuffer. For that [this shim](https://github.com/ddvk/remarkable2-framebuffer/) has to be used (or you won't get an image). Luckily current launchers support automaticially launching apps through the shim. So if you use a launcher (oxide or remux), it should just work.
+This app cant actually drive the rM 2 framebuffer. It needs [rm2fb](https://github.com/ddvk/remarkable2-framebuffer/) for that.
 
-Though, since the framebuffer uses a shim, specific refresh optimization may not apply to the reMarkable 2 and perform a bit worse there (but this is probably nitpicky anyway).
+If you execute retris from ssh, be sure to have followed rm2fb steps to enable the support. When launching through a launcher (from toltec) it should just work but have more ghosting on the rM2.
 
 ## Credit
 
