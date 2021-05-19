@@ -88,7 +88,10 @@ impl ChessGame {
             ));
         }
         if count > self.total_undoable_moves() {
-            return Err(anyhow!("Can't undo {} moves as the board was probably imported from a FEN which doesn't preserve the moves.", count));
+            return Err(anyhow!(
+                "Can't undo {} moves. (Starting from a FEN/savestate doesn't keep moves).",
+                count
+            ));
         }
 
         for _ in 0..count {

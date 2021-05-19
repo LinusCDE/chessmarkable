@@ -8,14 +8,17 @@ extern crate lazy_static;
 extern crate log;
 
 mod canvas;
+mod savestates;
 mod scene;
 
 use crate::canvas::Canvas;
 use crate::scene::*;
+use anyhow::Context;
 use clap::{crate_authors, crate_version, Clap};
 use lazy_static::lazy_static;
+use libremarkable::device::{Model, CURRENT_DEVICE};
 use libremarkable::input::{ev::EvDevContext, InputDevice, InputEvent};
-use libremarkable::device::{CURRENT_DEVICE, Model};
+use savestates::Savestates;
 use std::env;
 use std::process::Command;
 use std::thread::sleep;
@@ -48,14 +51,17 @@ pub struct Opts {
 
     #[clap(
         long,
-        short,
-        about = "FEN used for the initial board instead of the default postions. You can get the fen of a game by setting env RUST_LOG=debug"
+        short = 'f',
+        about = "Path to the file containing the savestates",
+        default_value = "/home/root/.config/chessmarkable/savestates.yml"
     )]
-    intial_fen: Option<String>,
+    savestates_file: std::path::PathBuf,
 }
 
 lazy_static! {
     pub static ref CLI_OPTS: Opts = Opts::parse();
+    pub static ref SAVESTATES: std::sync::Mutex<Savestates> =
+        std::sync::Mutex::new(Default::default());
 }
 
 fn main() {
@@ -104,6 +110,17 @@ fn main() {
         false
     };
 
+    *SAVESTATES.lock().unwrap() = match savestates::read() {
+        Ok(savestates) => savestates,
+        Err(err) => {
+            error!(
+                "Failed to read savestates file at {:?}: {:?}",
+                &CLI_OPTS.savestates_file, err
+            );
+            std::process::exit(1);
+        }
+    };
+
     let mut canvas = Canvas::new();
 
     let (input_tx, input_rx) = std::sync::mpsc::channel::<InputEvent>();
@@ -113,7 +130,8 @@ fn main() {
     const FPS: u16 = 30;
     const FRAME_DURATION: Duration = Duration::from_millis(1000 / FPS as u64);
 
-    let mut current_scene: Box<dyn Scene> = Box::new(MainMenuScene::new(only_exit_to_xochitl));
+    let mut current_scene: Box<dyn Scene> =
+        Box::new(MainMenuScene::new(only_exit_to_xochitl, false));
 
     loop {
         let before_input = SystemTime::now();
@@ -139,20 +157,18 @@ fn update(
 ) -> Box<dyn Scene> {
     if let Some(game_scene) = scene.downcast_ref::<GameScene>() {
         if game_scene.back_button_pressed {
-            return Box::new(MainMenuScene::new(only_exit_to_xochitl));
+            return Box::new(MainMenuScene::new(only_exit_to_xochitl, false));
         }
     } else if let Some(main_menu_scene) = scene.downcast_ref::<MainMenuScene>() {
+        let pvp_rot_en = main_menu_scene.pvp_piece_rotation_enabled;
         if main_menu_scene.play_pvp_button_pressed {
-            return Box::new(GameScene::new(
-                GameMode::PvP,
-                main_menu_scene.pvp_piece_rotation_enabled,
-            ));
+            return Box::new(BoardSelectScene::new(GameMode::PvP, pvp_rot_en));
         } else if main_menu_scene.play_easy_button_pressed {
-            return Box::new(GameScene::new(GameMode::EasyBot, false));
+            return Box::new(BoardSelectScene::new(GameMode::EasyBot, pvp_rot_en));
         } else if main_menu_scene.play_normal_button_pressed {
-            return Box::new(GameScene::new(GameMode::NormalBot, false));
+            return Box::new(BoardSelectScene::new(GameMode::NormalBot, pvp_rot_en));
         } else if main_menu_scene.play_hard_button_pressed {
-            return Box::new(GameScene::new(GameMode::HardBot, false));
+            return Box::new(BoardSelectScene::new(GameMode::HardBot, pvp_rot_en));
         } else if main_menu_scene.exit_xochitl_button_pressed {
             canvas.clear();
             canvas.update_full();
@@ -166,6 +182,52 @@ fn update(
             canvas.clear();
             canvas.update_full();
             std::process::exit(0);
+        }
+    } else if let Some(board_select_scene) = scene.downcast_ref::<BoardSelectScene>() {
+        if board_select_scene.select_slot_1_button_pressed {
+            return Box::new(GameScene::new(
+                board_select_scene.selected_gamemode,
+                SavestateSlot::First,
+                board_select_scene.pvp_piece_rotation_enabled,
+            ));
+        } else if board_select_scene.select_slot_2_button_pressed {
+            return Box::new(GameScene::new(
+                board_select_scene.selected_gamemode,
+                SavestateSlot::Second,
+                board_select_scene.pvp_piece_rotation_enabled,
+            ));
+        } else if board_select_scene.select_slot_3_button_pressed {
+            return Box::new(GameScene::new(
+                board_select_scene.selected_gamemode,
+                SavestateSlot::Third,
+                board_select_scene.pvp_piece_rotation_enabled,
+            ));
+        } else if board_select_scene.reset_slot_1_button_pressed {
+            SAVESTATES.lock().unwrap().slot_1 = None;
+            return Box::new(GameScene::new(
+                board_select_scene.selected_gamemode,
+                SavestateSlot::First,
+                board_select_scene.pvp_piece_rotation_enabled,
+            ));
+        } else if board_select_scene.reset_slot_2_button_pressed {
+            SAVESTATES.lock().unwrap().slot_2 = None;
+            return Box::new(GameScene::new(
+                board_select_scene.selected_gamemode,
+                SavestateSlot::Second,
+                board_select_scene.pvp_piece_rotation_enabled,
+            ));
+        } else if board_select_scene.reset_slot_3_button_pressed {
+            SAVESTATES.lock().unwrap().slot_3 = None;
+            return Box::new(GameScene::new(
+                board_select_scene.selected_gamemode,
+                SavestateSlot::Third,
+                board_select_scene.pvp_piece_rotation_enabled,
+            ));
+        } else if board_select_scene.back_button_pressed {
+            return Box::new(MainMenuScene::new(
+                only_exit_to_xochitl,
+                board_select_scene.pvp_piece_rotation_enabled,
+            ));
         }
     }
     scene

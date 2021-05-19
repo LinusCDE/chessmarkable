@@ -1,7 +1,9 @@
+mod board_select_scene;
 mod game_scene;
 mod main_menu_scene;
 
-pub use game_scene::{GameMode, GameScene};
+pub use board_select_scene::BoardSelectScene;
+pub use game_scene::{GameMode, GameScene, SavestateSlot};
 pub use main_menu_scene::MainMenuScene;
 
 use crate::canvas::Canvas;

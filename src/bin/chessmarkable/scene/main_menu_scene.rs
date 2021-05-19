@@ -23,12 +23,11 @@ pub struct MainMenuScene {
     pub exit_xochitl_button_pressed: bool,
 
     only_exit_to_xochitl: bool,
-    indicate_loading: bool,
     pub pvp_piece_rotation_enabled: bool,
 }
 
 impl MainMenuScene {
-    pub fn new(only_exit_to_xochitl: bool) -> Self {
+    pub fn new(only_exit_to_xochitl: bool, pvp_piece_rotation_enabled: bool) -> Self {
         Self {
             drawn: false,
             play_pvp_button_hitbox: None,
@@ -46,21 +45,8 @@ impl MainMenuScene {
             exit_xochitl_button_hitbox: None,
             exit_xochitl_button_pressed: false,
             only_exit_to_xochitl,
-            indicate_loading: false,
-            pvp_piece_rotation_enabled: false,
+            pvp_piece_rotation_enabled,
         }
-    }
-
-    fn indicate_loading(&self, canvas: &mut Canvas) {
-        let rect = canvas.draw_text(
-            Point2 {
-                x: None,
-                y: Some(350),
-            },
-            "Loading game... (preparing assets)",
-            50.0,
-        );
-        canvas.update_partial(&rect);
     }
 
     fn draw_rotation_button(&mut self, canvas: &mut Canvas) {
@@ -120,12 +106,6 @@ impl MainMenuScene {
 
 impl Scene for MainMenuScene {
     fn draw(&mut self, canvas: &mut Canvas) {
-        if self.indicate_loading {
-            self.indicate_loading(canvas);
-            self.indicate_loading = false;
-            return;
-        }
-
         if self.pvp_toggle_piece_rotation_redraw {
             self.draw_rotation_button(canvas);
             canvas.update_partial(&self.pvp_toggle_piece_rotation_hitbox.unwrap());
@@ -250,7 +230,6 @@ impl Scene for MainMenuScene {
                     && Canvas::is_hitting(position, self.play_pvp_button_hitbox.unwrap())
                 {
                     self.play_pvp_button_pressed = true;
-                    self.indicate_loading = true;
                 }
                 if self.pvp_toggle_piece_rotation_hitbox.is_some()
                     && Canvas::is_hitting(position, self.pvp_toggle_piece_rotation_hitbox.unwrap())
@@ -261,17 +240,14 @@ impl Scene for MainMenuScene {
                     && Canvas::is_hitting(position, self.play_easy_button_hitbox.unwrap())
                 {
                     self.play_easy_button_pressed = true;
-                    self.indicate_loading = true;
                 } else if self.play_normal_button_hitbox.is_some()
                     && Canvas::is_hitting(position, self.play_normal_button_hitbox.unwrap())
                 {
                     self.play_normal_button_pressed = true;
-                    self.indicate_loading = true;
                 } else if self.play_hard_button_hitbox.is_some()
                     && Canvas::is_hitting(position, self.play_hard_button_hitbox.unwrap())
                 {
                     self.play_hard_button_pressed = true;
-                    self.indicate_loading = true;
                 } else if self.exit_button_hitbox.is_some()
                     && Canvas::is_hitting(position, self.exit_button_hitbox.unwrap())
                 {

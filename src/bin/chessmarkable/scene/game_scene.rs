@@ -106,10 +106,17 @@ pub enum GameMode {
     // Could go up to about 8-10 (depending on the algo) before getting too slow. But probably fairly unbeatable then.
 }
 
+pub enum SavestateSlot {
+    First,
+    Second,
+    Third,
+}
+
 pub struct GameScene {
     board: Board,
     /// May be above zero when a fen was imported. Used to prevent panic on undo.
     game_mode: GameMode,
+    savestate_slot: SavestateSlot,
     first_draw: bool,
     back_button_hitbox: Option<mxcfb_rect>,
     undo_button_hitbox: Option<mxcfb_rect>,
@@ -155,7 +162,11 @@ pub struct GameScene {
 }
 
 impl GameScene {
-    pub fn new(game_mode: GameMode, pvp_piece_rotation_enabled: bool) -> Self {
+    pub fn new(
+        game_mode: GameMode,
+        savestate_slot: SavestateSlot,
+        pvp_piece_rotation_enabled: bool,
+    ) -> Self {
         // Size of board
         let square_size = DISPLAYWIDTH as u32 / 8;
         let piece_padding = square_size / 10;
@@ -221,6 +232,12 @@ impl GameScene {
         let mut white_update_receiver: Option<Receiver<ChessUpdate>> = None;
         let mut black_update_receiver: Option<Receiver<ChessUpdate>> = None;
 
+        let starting_fen = match savestate_slot {
+            SavestateSlot::First => crate::SAVESTATES.lock().unwrap().slot_1.clone(),
+            SavestateSlot::Second => crate::SAVESTATES.lock().unwrap().slot_2.clone(),
+            SavestateSlot::Third => crate::SAVESTATES.lock().unwrap().slot_3.clone(),
+        };
+
         if game_mode == GameMode::PvP {
             let (white_update_tx, white_update_rx) = channel::<ChessUpdate>(256);
             let (white_request_tx, white_request_rx) = channel::<ChessRequest>(256);
@@ -233,7 +250,7 @@ impl GameScene {
                 (black_update_tx, black_request_rx),
                 stubbed_spectator(),
                 ChessConfig {
-                    starting_fen: CLI_OPTS.intial_fen.clone(),
+                    starting_fen,
                     can_black_undo: true,
                     can_white_undo: true,
                     allow_undo_after_loose: true,
@@ -277,7 +294,7 @@ impl GameScene {
                 bot,
                 stubbed_spectator(),
                 ChessConfig {
-                    starting_fen: CLI_OPTS.intial_fen.clone(),
+                    starting_fen,
                     can_black_undo: false,
                     can_white_undo: true,
                     allow_undo_after_loose: true,
@@ -292,6 +309,7 @@ impl GameScene {
             board: Board::default(), // Temporary default (usually stays that but will change when having a custom fen)
             first_draw: true,
             game_mode,
+            savestate_slot,
             piece_hitboxes,
             square_size,
             piece_padding,
@@ -780,7 +798,25 @@ impl Scene for GameScene {
                         if self.back_button_hitbox.is_some()
                             && Canvas::is_hitting(finger.pos, self.back_button_hitbox.unwrap())
                         {
-                            self.back_button_pressed = true;
+                            // Save game
+                            let fen = self.board.fen();
+                            let mut savesstates = crate::SAVESTATES.lock().unwrap();
+                            match self.savestate_slot {
+                                SavestateSlot::First => savesstates.slot_1 = Some(fen),
+                                SavestateSlot::Second => savesstates.slot_2 = Some(fen),
+                                SavestateSlot::Third => savesstates.slot_3 = Some(fen),
+                            }
+                            if let Err(err) = crate::savestates::write(&savesstates) {
+                                error!("Failed to write savestates file!");
+                                self.show_bottom_game_info(
+                                    GameBottomInfo::Error(format!("{}", err)),
+                                    None,
+                                    Some(Duration::from_secs(10)),
+                                );
+                            } else {
+                                info!("Saved game to selected savestate slot");
+                                self.back_button_pressed = true;
+                            }
                         }
                         if self.undo_button_hitbox.is_some()
                             && Canvas::is_hitting(finger.pos, self.undo_button_hitbox.unwrap())
@@ -898,7 +934,7 @@ impl Scene for GameScene {
                     x: Some(50),
                     y: Some(90),
                 },
-                "Main Menu",
+                "Save & Quit",
                 75.0,
                 10,
                 20,
