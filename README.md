@@ -8,7 +8,7 @@
 
 A chess game for the reMarkable tablet writting using the [pleco](https://crates.io/crates/pleco) chess library which is a port of [Stockfish](https://stockfishchess.org/).
 
-<img src="https://transfer.cosmos-ink.net/VcnXJ/mainmenu.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/pGFAe/2.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/LZ9QT/3.jpg" width="30%">
+<img src="https://transfer.cosmos-ink.net/VcnXJ/mainmenu.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/1WVcVVf/2.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/LZ9QT/3.jpg" width="30%">
 
 ## Controlling
 
@@ -23,7 +23,9 @@ The second method has the advantage that it doesn't highlight the chess piece or
 
 When running the Game with the enviroment variable `RUST_LOG` set to `debug`, the [FEN](https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation) of a board will be output on each move. This is useful for debugging but also for manually saving a game state or resuming it elsewhere since this notation should be compatible with other chess programs/engines.
 
-The reverse can also be done. Running chessmarkable with `-i` set to a FEN, will start any game with the supplied board. That way a game can be resumed or debugging a edge case speed up.
+When starting a game, you'll need to specifiy a slot to play on. On quitting the game, the FEN will get saved to `~/.config/chessmarkable/savestates.yml` which can be used to resume from.
+
+(The `-i` option was removed in favor to add your own fen to the above file).
 
 ## Installation
 
@@ -52,7 +54,7 @@ The reverse can also be done. Running chessmarkable with `-i` set to a FEN, will
 
 This app cant actually drive the rM 2 framebuffer. It needs [rm2fb](https://github.com/ddvk/remarkable2-framebuffer/) for that.
 
-If you execute retris from ssh, be sure to have followed rm2fb steps to enable the support. When launching through a launcher (from toltec) it should just work but have more ghosting on the rM2.
+If you execute chessmarkable from ssh, be sure to have followed rm2fb steps to enable the support. When installed running `rm2fb-client ./chessmarkable` should work as well. Launching through a launcher (from toltec) should just work.
 
 ## Credit
 
