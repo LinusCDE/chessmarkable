@@ -1,6 +1,6 @@
 [package]
 name = "chessmarkable"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Linus <linus@cosmos-ink.net>"]
 edition = "2018"
 
