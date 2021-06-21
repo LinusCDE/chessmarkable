@@ -886,9 +886,38 @@ impl Scene for GameScene {
                                                 self.selected_square = None;
                                                 self.clear_move_hints();
                                             } else {
-                                                // Move
-                                                self.redraw_squares.insert(new_square.clone());
-                                                self.on_user_move(last_selected_square, new_square);
+                                                // Attempt to move from last_selected_square to new_square if move is
+                                                // in self.possible_moves. Otherwise just select the piece on new_square.
+                                                // See https://github.com/LinusCDE/chessmarkable/issues/14
+                                                let is_possible_move = self
+                                                    .possible_moves
+                                                    .iter()
+                                                    .any(|(possible_src, possible_dest)| {
+                                                        possible_src == &last_selected_square
+                                                            && possible_dest == &new_square
+                                                    });
+                                                if is_possible_move {
+                                                    // Move
+                                                    self.redraw_squares.insert(new_square.clone());
+                                                    self.on_user_move(
+                                                        last_selected_square,
+                                                        new_square,
+                                                    );
+                                                } else {
+                                                    // Select new_square as new selected piece
+                                                    if self.board.piece_at_sq(*new_square)
+                                                        != Piece::None
+                                                    {
+                                                        self.selected_square = Some(new_square);
+                                                        self.redraw_squares
+                                                            .insert(new_square.clone());
+                                                        self.set_move_hints(new_square);
+                                                    } else {
+                                                        // Clear selection
+                                                        self.selected_square = None;
+                                                        self.clear_move_hints();
+                                                    }
+                                                }
                                             }
                                         } else {
                                             let finger_down_square = self
