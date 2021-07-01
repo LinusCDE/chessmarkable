@@ -15,6 +15,8 @@ pub struct MainMenuScene {
     pub play_normal_button_pressed: bool,
     play_hard_button_hitbox: Option<mxcfb_rect>,
     pub play_hard_button_pressed: bool,
+    viewer_button_hitbox: Option<mxcfb_rect>,
+    pub viewer_button_pressed: bool,
 
     exit_button_hitbox: Option<mxcfb_rect>,
     pub exit_button_pressed: bool,
@@ -40,6 +42,8 @@ impl MainMenuScene {
             play_normal_button_pressed: false,
             play_hard_button_hitbox: None,
             play_hard_button_pressed: false,
+            viewer_button_hitbox: None,
+            viewer_button_pressed: false,
             exit_button_hitbox: None,
             exit_button_pressed: false,
             exit_xochitl_button_hitbox: None,
@@ -67,7 +71,7 @@ impl MainMenuScene {
         self.pvp_toggle_piece_rotation_hitbox = Some(canvas.draw_text(
             Point2 {
                 x: None,
-                y: Some(775),
+                y: Some(675),
             },
             "      Rotate board",
             50.0,
@@ -121,7 +125,7 @@ impl Scene for MainMenuScene {
         canvas.draw_text(
             Point2 {
                 x: None,
-                y: Some(300),
+                y: Some(200),
             },
             "chessMarkable",
             150.0,
@@ -130,7 +134,7 @@ impl Scene for MainMenuScene {
         canvas.draw_text(
             Point2 {
                 x: None,
-                y: Some(500),
+                y: Some(400),
             },
             "Player vs Player",
             75.0,
@@ -139,7 +143,7 @@ impl Scene for MainMenuScene {
         self.play_pvp_button_hitbox = Some(canvas.draw_button(
             Point2 {
                 x: None,
-                y: Some(650),
+                y: Some(550),
             },
             "Play!",
             125.0,
@@ -152,7 +156,7 @@ impl Scene for MainMenuScene {
         canvas.draw_text(
             Point2 {
                 x: None,
-                y: Some(900),
+                y: Some(800),
             },
             "Player vs Bot",
             75.0,
@@ -161,7 +165,7 @@ impl Scene for MainMenuScene {
         self.play_easy_button_hitbox = Some(canvas.draw_button(
             Point2 {
                 x: None,
-                y: Some(1050),
+                y: Some(950),
             },
             "Easy",
             125.0,
@@ -194,12 +198,25 @@ impl Scene for MainMenuScene {
             25,
             50,
         ));
+        self.viewer_button_hitbox = Some(canvas.draw_button(
+            Point2 {
+                x: None,
+                y: Some(
+                    175 + self.play_hard_button_hitbox.unwrap().top as i32
+                        + self.play_hard_button_hitbox.unwrap().height as i32,
+                ),
+            },
+            "PGN Viewer",
+            125.0,
+            25,
+            50,
+        ));
 
         if self.only_exit_to_xochitl {
             self.exit_xochitl_button_hitbox = Some(canvas.draw_button(
                 Point2 {
                     x: None,
-                    y: Some(1650),
+                    y: Some(1750),
                 },
                 "Exit to Xochitl",
                 125.0,
@@ -210,7 +227,7 @@ impl Scene for MainMenuScene {
             self.exit_button_hitbox = Some(canvas.draw_button(
                 Point2 {
                     x: None,
-                    y: Some(1700),
+                    y: Some(1750),
                 },
                 "Exit",
                 125.0,
@@ -248,6 +265,10 @@ impl Scene for MainMenuScene {
                     && Canvas::is_hitting(position, self.play_hard_button_hitbox.unwrap())
                 {
                     self.play_hard_button_pressed = true;
+                } else if self.viewer_button_hitbox.is_some()
+                    && Canvas::is_hitting(position, self.viewer_button_hitbox.unwrap())
+                {
+                    self.viewer_button_pressed = true;
                 } else if self.exit_button_hitbox.is_some()
                     && Canvas::is_hitting(position, self.exit_button_hitbox.unwrap())
                 {
