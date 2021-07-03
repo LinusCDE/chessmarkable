@@ -29,9 +29,7 @@ pub struct PgnSelectScene {
     pub pgn_6_button_pressed: bool,
 
     next_page_button_hitbox: Option<mxcfb_rect>,
-    pub next_page_button_pressed: bool,
     prev_page_button_hitbox: Option<mxcfb_rect>,
-    pub prev_page_button_pressed: bool,
     back_button_hitbox: Option<mxcfb_rect>,
     pub back_button_pressed: bool,
 
@@ -67,7 +65,7 @@ impl PgnSelectScene {
             prev_page_button_hitbox: None,
             back_button_hitbox: None,
             back_button_pressed: false,
-            indicate_loading: true,
+            indicate_loading: false,
         }
     }
 
@@ -88,10 +86,6 @@ impl Scene for PgnSelectScene {
     fn draw(&mut self, canvas: &mut Canvas) {
         if self.indicate_loading {
             self.indicate_loading(canvas);
-            self.pgn_vec = match crate::pgns::read(((self.current_page_number * REPLAYS_PER_PAGE) as usize), ((self.current_page_number + 1) * REPLAYS_PER_PAGE - 1) as usize) {
-                Ok(vec) => vec,
-                Err(_) => Vec::new()
-            };
             self.indicate_loading = false;
             return;
         }
@@ -101,8 +95,11 @@ impl Scene for PgnSelectScene {
         }
         self.drawn = true;
 
-
         canvas.clear();
+        self.pgn_vec = match crate::pgns::read(((self.current_page_number * REPLAYS_PER_PAGE) as usize), ((self.current_page_number + 1) * REPLAYS_PER_PAGE - 1) as usize) {
+            Ok(vec) => vec,
+            Err(_) => Vec::new()
+        };
         canvas.draw_text(
             Point2 {
                 x: None,
@@ -129,12 +126,12 @@ impl Scene for PgnSelectScene {
                 "Choose PGN:",
                 75.0,
             );
-            self.pgn_1_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(0), 500, 37.5, 75);
-            self.pgn_2_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(1), 675, 37.5, 75);
-            self.pgn_3_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(2), 850, 37.5, 75);
-            self.pgn_4_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(3), 1025, 37.5, 75);
-            self.pgn_5_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(4), 1200, 37.5, 75);
-            self.pgn_6_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(5), 1375, 37.5, 75);
+            self.pgn_1_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(0), 350, 37.5);
+            self.pgn_2_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(1), 550, 37.5);
+            self.pgn_3_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(2), 750, 37.5);
+            self.pgn_4_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(3), 950, 37.5);
+            self.pgn_5_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(4), 1150, 37.5);
+            self.pgn_6_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(5), 1350, 37.5);
 
             self.back_button_hitbox = Some(canvas.draw_button(
                 Point2 {
@@ -201,7 +198,6 @@ impl Scene for PgnSelectScene {
 impl PgnSelectScene {
     fn go_to_next_page(&mut self) {
         if self.current_page_number + 1 < self.total_pages {
-            self.indicate_loading = true;
             self.drawn = false;
             self.current_page_number = self.current_page_number + 1;
         }
@@ -209,27 +205,26 @@ impl PgnSelectScene {
 
     fn go_to_prev_page(&mut self) {
         if self.current_page_number != 0 {
-            self.indicate_loading = true;
             self.drawn = false;
             self.current_page_number = self.current_page_number - 1;
         }
     }
 }
 
-fn construct_text_for_replay(pgn_ref: &Pgn) -> String {
-    let mut replay_text = pgn_ref.white_player_name.to_owned().unwrap_or("White".parse().unwrap());
-    replay_text.push_str(" vs ");
-    replay_text.push_str(pgn_ref.black_player_name.as_ref().unwrap_or(&"Black".to_string()));
-    replay_text.push_str(" at ");
-    replay_text.push_str(pgn_ref.event.as_ref().unwrap_or(&"Event".to_string()));
-    replay_text.push_str(" ");
-    replay_text.push_str(pgn_ref.round.as_ref().unwrap_or(&"".to_string()));
-    replay_text
-}
+// fn construct_text_for_replay(pgn_ref: &Pgn) -> String {
+//     let mut replay_text = pgn_ref.white_player_name.to_owned().unwrap_or("White".parse().unwrap());
+//     replay_text.push_str(" vs ");
+//     replay_text.push_str(pgn_ref.black_player_name.as_ref().unwrap_or(&"Black".to_string()));
+//     replay_text.push_str(" at ");
+//     replay_text.push_str(pgn_ref.event.as_ref().unwrap_or(&"Event".to_string()));
+//     replay_text.push_str(" ");
+//     replay_text.push_str(pgn_ref.round.as_ref().unwrap_or(&"".to_string()));
+//     replay_text
+// }
 
-fn draw_replay_for_pgn(canvas: &mut Canvas, maybe_pgn_ref: Option<&Pgn>, y_pos: i32, font_size: f32, vgap: u32) -> Option<mxcfb_rect> {
+fn draw_replay_for_pgn(canvas: &mut Canvas, maybe_pgn_ref: Option<&Pgn>, y_pos: i32, font_size: f32) -> Option<mxcfb_rect> {
     match maybe_pgn_ref {
-        Some(pgn_ref) => Some(canvas.draw_box_button(Some(y_pos), &*construct_text_for_replay(pgn_ref), font_size, vgap)),
+        Some(pgn_ref) => Some(canvas.draw_box_button(y_pos, 200, &*pgn_ref.path.file_name().unwrap().to_owned().into_string().unwrap_or("Can't read file name".to_string()), font_size)),
         None => None
     }
 }

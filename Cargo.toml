@@ -23,6 +23,7 @@ serde_json = "1.0"
 serde_yaml = "0.8"
 thiserror = "1.0"
 glob = "0.3.0"
+chess_pgn_parser = "0.1.2"
 
 [dependencies.tokio]
 version = "0.2"

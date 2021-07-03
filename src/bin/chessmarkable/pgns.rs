@@ -7,10 +7,6 @@ use glob::glob;
 #[derive(Serialize, Deserialize)]
 pub struct Pgn {
     pub path: PathBuf,
-    pub white_player_name: Option<String>,
-    pub black_player_name: Option<String>,
-    pub event: Option<String>,
-    pub round: Option<String>,
 }
 
 pub fn read(from: usize, to: usize) -> Result<Vec<Pgn>> {
@@ -28,13 +24,11 @@ pub fn read(from: usize, to: usize) -> Result<Vec<Pgn>> {
             .skip(from)
             .take(elements_to_fetch) {
             match entry {
-                Ok(path) => requested_pgns.push(Pgn {
-                    path,
-                    white_player_name: None,
-                    black_player_name: None,
-                    event: None,
-                    round: None,
-                }),
+                Ok(path) => {
+                    requested_pgns.push(Pgn {
+                        path
+                    })
+                }
                 Err(e) => println!("{:?}", e)
             }
         }
