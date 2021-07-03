@@ -132,8 +132,6 @@ dependencies = [
 [[package]]
 name = "chess_pgn_parser"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f56c319c55f634dcc22608c5e6d0c6f3bb9fb479ce09b8f89b729fc5cf9b139"
 dependencies = [
  "enum_primitive",
  "num",
@@ -155,6 +153,7 @@ dependencies = [
  "libremarkable",
  "log",
  "pleco",
+ "regex",
  "serde",
  "serde_json",
  "serde_string_derive",

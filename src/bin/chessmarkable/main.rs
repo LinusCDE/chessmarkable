@@ -179,7 +179,7 @@ fn update(
         } else if main_menu_scene.play_hard_button_pressed {
             return Box::new(BoardSelectScene::new(GameMode::HardBot, pvp_rot_en));
         } else if main_menu_scene.viewer_button_pressed {
-            return Box::new(PgnSelectScene::new(pvp_rot_en));
+            return Box::new(PgnSelectScene::new());
         } else if main_menu_scene.exit_xochitl_button_pressed {
             canvas.clear();
             canvas.update_full();
@@ -241,10 +241,10 @@ fn update(
             ));
         }
     } else if let Some(board_select_scene) = scene.downcast_ref::<PgnSelectScene>() {
-        if board_select_scene.back_button_pressed {
+        if board_select_scene.return_to_main_menu {
             return Box::new(MainMenuScene::new(
                 only_exit_to_xochitl,
-                board_select_scene.pvp_piece_rotation_enabled,
+                false
             ));
         }
     }

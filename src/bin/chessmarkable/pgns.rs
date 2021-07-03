@@ -4,9 +4,9 @@ use std::io::{Read, Write};
 use std::path::{PathBuf, Path};
 use glob::glob;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Pgn {
-    pub path: PathBuf,
+    pub path: PathBuf
 }
 
 pub fn read(from: usize, to: usize) -> Result<Vec<Pgn>> {
@@ -46,7 +46,7 @@ pub fn total_number_of_pgn() -> u32 {
         for entry in glob(&*construct_png_loc_pattern_string(pgn_loc))
             .expect("Failed to read glob pattern") {
             match entry {
-                Ok(path) => pages = pages + 1,
+                Ok(_) => pages = pages + 1,
                 Err(e) => println!("{:?}", e)
             }
         }

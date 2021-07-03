@@ -4,68 +4,66 @@ use crate::savestates::Savestates;
 use crate::pgns::*;
 use libremarkable::input::{multitouch::MultitouchEvent, InputEvent};
 use anyhow::Error;
+use chess_pgn_parser::{Game, read_games};
+use std::fs::File;
+use std::io::Read;
+use regex::Regex;
 
-const REPLAYS_PER_PAGE: u32 = 5;
+const REPLAYS_PER_PAGE: u32 = 6;
+const BOX_HEIGHT: i32 = 180;
+const FIRST_BOX_Y_POS: i32 = 350;
+
+const EVENT: &str = "Event";
+const WHITE: &str = "White";
+const BLACK: &str = "Black";
+const ROUND: &str = "Round";
 
 pub struct PgnSelectScene {
     drawn: bool,
+    game_vec: Vec<Game>,
     pgn_vec: Vec<Pgn>,
-    pub pvp_piece_rotation_enabled: bool,
+    selected_pgn: Option<Pgn>,
+    selected_pgn_changed: bool,
 
     pub current_page_number: u32,
     pub total_pages: u32,
 
-    pgn_1_button_hitbox: Option<mxcfb_rect>,
-    pub pgn_1_button_pressed: bool,
-    pgn_2_button_hitbox: Option<mxcfb_rect>,
-    pub pgn_2_button_pressed: bool,
-    pgn_3_button_hitbox: Option<mxcfb_rect>,
-    pub pgn_3_button_pressed: bool,
-    pgn_4_button_hitbox: Option<mxcfb_rect>,
-    pub pgn_4_button_pressed: bool,
-    pgn_5_button_hitbox: Option<mxcfb_rect>,
-    pub pgn_5_button_pressed: bool,
-    pgn_6_button_hitbox: Option<mxcfb_rect>,
-    pub pgn_6_button_pressed: bool,
+    button_1_hitbox: Option<mxcfb_rect>,
+    button_2_hitbox: Option<mxcfb_rect>,
+    button_3_hitbox: Option<mxcfb_rect>,
+    button_4_hitbox: Option<mxcfb_rect>,
+    button_5_hitbox: Option<mxcfb_rect>,
+    button_6_hitbox: Option<mxcfb_rect>,
 
     next_page_button_hitbox: Option<mxcfb_rect>,
     prev_page_button_hitbox: Option<mxcfb_rect>,
     back_button_hitbox: Option<mxcfb_rect>,
-    pub back_button_pressed: bool,
+    pub return_to_main_menu: bool,
 
     indicate_loading: bool,
 }
 
 impl PgnSelectScene {
-    pub fn new(
-        pvp_piece_rotation_enabled: bool
-    ) -> Self {
+    pub fn new() -> Self {
         Self {
-            pgn_vec: Vec::new(),
             drawn: false,
-            pvp_piece_rotation_enabled,
             current_page_number: 0,
-            total_pages: match crate::pgns::total_number_of_pgn() {
-                0 => 1,
-                num => (num as f64 / REPLAYS_PER_PAGE as f64).ceil() as u32
-            },
-            pgn_1_button_hitbox: None,
-            pgn_1_button_pressed: false,
-            pgn_2_button_hitbox: None,
-            pgn_2_button_pressed: false,
-            pgn_3_button_hitbox: None,
-            pgn_3_button_pressed: false,
-            pgn_4_button_hitbox: None,
-            pgn_4_button_pressed: false,
-            pgn_5_button_hitbox: None,
-            pgn_5_button_pressed: false,
-            pgn_6_button_hitbox: None,
-            pgn_6_button_pressed: false,
+            total_pages: 1,
+            button_1_hitbox: None,
+            button_2_hitbox: None,
+            button_3_hitbox: None,
+            button_4_hitbox: None,
+            button_5_hitbox: None,
+            button_6_hitbox: None,
             next_page_button_hitbox: None,
             prev_page_button_hitbox: None,
             back_button_hitbox: None,
-            back_button_pressed: false,
+            return_to_main_menu: false,
             indicate_loading: false,
+            selected_pgn_changed: false,
+            selected_pgn: None,
+            pgn_vec: vec![],
+            game_vec: vec![],
         }
     }
 
@@ -75,7 +73,7 @@ impl PgnSelectScene {
                 x: None,
                 y: Some(350),
             },
-            "Loading pgns..",
+            "Loading..",
             50.0,
         );
         canvas.update_partial(&rect);
@@ -96,10 +94,87 @@ impl Scene for PgnSelectScene {
         self.drawn = true;
 
         canvas.clear();
-        self.pgn_vec = match crate::pgns::read(((self.current_page_number * REPLAYS_PER_PAGE) as usize), ((self.current_page_number + 1) * REPLAYS_PER_PAGE - 1) as usize) {
-            Ok(vec) => vec,
-            Err(_) => Vec::new()
-        };
+        let choose_pgn_mode = !self.selected_pgn.is_some();
+        if choose_pgn_mode {
+            self.total_pages = match crate::pgns::total_number_of_pgn() {
+                0 => 1,
+                num => (num as f64 / REPLAYS_PER_PAGE as f64).ceil() as u32
+            };
+            self.pgn_vec = match crate::pgns::read(((self.current_page_number * REPLAYS_PER_PAGE) as usize), ((self.current_page_number + 1) * REPLAYS_PER_PAGE - 1) as usize) {
+                Ok(vec) => vec,
+                Err(_) => Vec::new()
+            };
+            if self.pgn_vec.len() == 0 {
+                canvas.draw_text(
+                    Point2 {
+                        x: None,
+                        y: Some(700),
+                    },
+                    "No PGNs found in PGN directory",
+                    75.0,
+                );
+            } else {
+                canvas.draw_text(
+                    Point2 {
+                        x: None,
+                        y: Some(300),
+                    },
+                    "Choose PGN:",
+                    75.0,
+                );
+            }
+            self.button_1_hitbox = draw_button_for_pgn(canvas, self.pgn_vec.get(0), FIRST_BOX_Y_POS, 50.0);
+            self.button_2_hitbox = draw_button_for_pgn(canvas, self.pgn_vec.get(1), FIRST_BOX_Y_POS + BOX_HEIGHT, 50.0);
+            self.button_3_hitbox = draw_button_for_pgn(canvas, self.pgn_vec.get(2), FIRST_BOX_Y_POS + BOX_HEIGHT * 2, 50.0);
+            self.button_4_hitbox = draw_button_for_pgn(canvas, self.pgn_vec.get(3), FIRST_BOX_Y_POS + BOX_HEIGHT * 3, 50.0);
+            self.button_5_hitbox = draw_button_for_pgn(canvas, self.pgn_vec.get(4), FIRST_BOX_Y_POS + BOX_HEIGHT * 4, 50.0);
+            self.button_6_hitbox = draw_button_for_pgn(canvas, self.pgn_vec.get(5), FIRST_BOX_Y_POS + BOX_HEIGHT * 5, 50.0);
+        } else {
+            if self.selected_pgn_changed {
+                let mut file = File::open(self.selected_pgn.as_ref().unwrap().path.to_str().unwrap()).unwrap();
+                let mut png_file_contents = String::new();
+                file.read_to_string(&mut png_file_contents).expect("Unable to read file");
+                //Library doesn't play nice with comments inside brackets
+                //This gets rid of up to two levels of bracket nesting
+                let re = Regex::new(r"\((?:[^)(]|\((?:[^)(]|\([^)(]*\))*\))*\)").unwrap();
+                let result = re.replace_all(&*png_file_contents, "");
+                self.game_vec = match read_games(&result) {
+                    Ok(games) => games,
+                    Err(e) => {
+                        println!("{:?}", e);
+                        vec![]
+                    }
+                };
+                self.total_pages = (self.game_vec.len() as f64 / REPLAYS_PER_PAGE as f64).ceil() as u32;
+                self.selected_pgn_changed = false;
+            }
+            if self.game_vec.len() == 0 {
+                canvas.draw_text(
+                    Point2 {
+                        x: None,
+                        y: Some(700),
+                    },
+                    "Couldn't parse any games from PGN",
+                    75.0,
+                );
+            } else {
+                canvas.draw_text(
+                    Point2 {
+                        x: None,
+                        y: Some(300),
+                    },
+                    "Choose Game:",
+                    75.0,
+                );
+            }
+            let index_of_first_game = (self.current_page_number * REPLAYS_PER_PAGE) as usize;
+            self.button_1_hitbox = draw_button_for_game(canvas, self.game_vec.get(index_of_first_game), FIRST_BOX_Y_POS, 50.0);
+            self.button_2_hitbox = draw_button_for_game(canvas, self.game_vec.get(index_of_first_game + 1), FIRST_BOX_Y_POS + BOX_HEIGHT, 50.0);
+            self.button_3_hitbox = draw_button_for_game(canvas, self.game_vec.get(index_of_first_game + 2), FIRST_BOX_Y_POS + BOX_HEIGHT * 2, 50.0);
+            self.button_4_hitbox = draw_button_for_game(canvas, self.game_vec.get(index_of_first_game + 3), FIRST_BOX_Y_POS + BOX_HEIGHT * 3, 50.0);
+            self.button_5_hitbox = draw_button_for_game(canvas, self.game_vec.get(index_of_first_game + 4), FIRST_BOX_Y_POS + BOX_HEIGHT * 4, 50.0);
+            self.button_6_hitbox = draw_button_for_game(canvas, self.game_vec.get(index_of_first_game + 5), FIRST_BOX_Y_POS + BOX_HEIGHT * 5, 50.0);
+        }
         canvas.draw_text(
             Point2 {
                 x: None,
@@ -108,67 +183,44 @@ impl Scene for PgnSelectScene {
             "chessMarkable",
             150.0,
         );
-        if self.pgn_vec.len() == 0 {
-            canvas.draw_text(
+        let back_button_text = match choose_pgn_mode {
+            true => "Main Menu",
+            false => "PGNs"
+        };
+        self.back_button_hitbox = Some(canvas.draw_button(
+            Point2 {
+                x: None,
+                y: Some(1700),
+            },
+            back_button_text,
+            75.0,
+            25,
+            50,
+        ));
+        self.next_page_button_hitbox = if self.current_page_number + 1 < self.total_pages {
+            Some(canvas.draw_button(
                 Point2 {
-                    x: None,
-                    y: Some(700),
-                },
-                "No PGNs found in PGN directory",
-                75.0,
-            );
-        } else {
-            canvas.draw_text(
-                Point2 {
-                    x: None,
-                    y: Some(300),
-                },
-                "Choose PGN:",
-                75.0,
-            );
-            self.pgn_1_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(0), 350, 37.5);
-            self.pgn_2_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(1), 550, 37.5);
-            self.pgn_3_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(2), 750, 37.5);
-            self.pgn_4_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(3), 950, 37.5);
-            self.pgn_5_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(4), 1150, 37.5);
-            self.pgn_6_button_hitbox = draw_replay_for_pgn(canvas, self.pgn_vec.get(5), 1350, 37.5);
-
-            self.back_button_hitbox = Some(canvas.draw_button(
-                Point2 {
-                    x: None,
+                    x: Some((self.back_button_hitbox.unwrap().left + self.back_button_hitbox.unwrap().width + 150) as i32),
                     y: Some(1700),
                 },
-                "Main Menu",
-                75.0,
-                25,
+                ">",
+                125.0,
                 50,
-            ));
-
-            self.next_page_button_hitbox = if self.current_page_number + 1 < self.total_pages {
-                Some(canvas.draw_button(
-                    Point2 {
-                        x: Some((self.back_button_hitbox.unwrap().left + self.back_button_hitbox.unwrap().width + 150) as i32),
-                        y: Some(1700),
-                    },
-                    ">",
-                    125.0,
-                    50,
-                    50,
-                ))
-            } else { None };
-            self.prev_page_button_hitbox = if self.current_page_number != 0 {
-                Some(canvas.draw_button(
-                    Point2 {
-                        x: Some((self.back_button_hitbox.unwrap().left - 200) as i32),
-                        y: Some(1700),
-                    },
-                    "<",
-                    125.0,
-                    50,
-                    50,
-                ))
-            } else { None };
-        };
+                50,
+            ))
+        } else { None };
+        self.prev_page_button_hitbox = if self.current_page_number != 0 {
+            Some(canvas.draw_button(
+                Point2 {
+                    x: Some((self.back_button_hitbox.unwrap().left - 200) as i32),
+                    y: Some(1700),
+                },
+                "<",
+                125.0,
+                50,
+                50,
+            ))
+        } else { None };
 
         canvas.update_full();
     }
@@ -177,11 +229,44 @@ impl Scene for PgnSelectScene {
         if let InputEvent::MultitouchEvent { event } = event {
             if let MultitouchEvent::Release { finger, .. } = event {
                 let position = finger.pos;
-                if self.back_button_hitbox.is_some()
-                    && Canvas::is_hitting(position, self.back_button_hitbox.unwrap())
-                {
-                    self.back_button_pressed = true;
-                } else if self.next_page_button_hitbox.is_some()
+                if self.selected_pgn.is_some() {
+                    if self.back_button_hitbox.is_some()
+                        && Canvas::is_hitting(position, self.back_button_hitbox.unwrap())
+                    {
+                        self.unload_pgn();
+                    }
+                } else {
+                    if self.back_button_hitbox.is_some()
+                        && Canvas::is_hitting(position, self.back_button_hitbox.unwrap())
+                    {
+                        self.return_to_main_menu = true;
+                    } else if self.button_1_hitbox.is_some()
+                        && Canvas::is_hitting(position, self.button_1_hitbox.unwrap())
+                    {
+                        self.load_pgn(self.pgn_vec[0].clone())
+                    } else if self.button_2_hitbox.is_some()
+                        && Canvas::is_hitting(position, self.button_2_hitbox.unwrap())
+                    {
+                        self.load_pgn(self.pgn_vec[1].clone())
+                    } else if self.button_3_hitbox.is_some()
+                        && Canvas::is_hitting(position, self.button_3_hitbox.unwrap())
+                    {
+                        self.load_pgn(self.pgn_vec[2].clone())
+                    } else if self.button_4_hitbox.is_some()
+                        && Canvas::is_hitting(position, self.button_4_hitbox.unwrap())
+                    {
+                        self.load_pgn(self.pgn_vec[3].clone())
+                    } else if self.button_5_hitbox.is_some()
+                        && Canvas::is_hitting(position, self.button_5_hitbox.unwrap())
+                    {
+                        self.load_pgn(self.pgn_vec[4].clone())
+                    } else if self.button_6_hitbox.is_some()
+                        && Canvas::is_hitting(position, self.button_6_hitbox.unwrap())
+                    {
+                        self.load_pgn(self.pgn_vec[5].clone())
+                    }
+                }
+                if self.next_page_button_hitbox.is_some()
                     && Canvas::is_hitting(position, self.next_page_button_hitbox.unwrap())
                 {
                     self.go_to_next_page()
@@ -209,22 +294,47 @@ impl PgnSelectScene {
             self.current_page_number = self.current_page_number - 1;
         }
     }
+
+    fn load_pgn(&mut self, pgn: Pgn) {
+        self.selected_pgn = Some(pgn);
+        self.selected_pgn_changed = true;
+        self.drawn = false;
+        self.current_page_number = 0;
+    }
+
+    fn unload_pgn(&mut self) {
+        self.selected_pgn = None;
+        self.drawn = false;
+        self.current_page_number = 0;
+    }
 }
 
-// fn construct_text_for_replay(pgn_ref: &Pgn) -> String {
-//     let mut replay_text = pgn_ref.white_player_name.to_owned().unwrap_or("White".parse().unwrap());
-//     replay_text.push_str(" vs ");
-//     replay_text.push_str(pgn_ref.black_player_name.as_ref().unwrap_or(&"Black".to_string()));
-//     replay_text.push_str(" at ");
-//     replay_text.push_str(pgn_ref.event.as_ref().unwrap_or(&"Event".to_string()));
-//     replay_text.push_str(" ");
-//     replay_text.push_str(pgn_ref.round.as_ref().unwrap_or(&"".to_string()));
-//     replay_text
-// }
+fn construct_text_for_replay(mut game: &Game) -> String {
+    let default_tuple: &(String, String) = &("N/A".parse().unwrap(), "N/A".parse().unwrap());
+    let white_tag: &(String, String) = game.tags.iter().find(|tag| tag.to_owned().0 == WHITE).unwrap_or(default_tuple);
+    let black_tag: &(String, String) = game.tags.iter().find(|tag| tag.to_owned().0 == BLACK).unwrap_or(default_tuple);
+    let event_tag: &(String, String) = game.tags.iter().find(|tag| tag.to_owned().0 == EVENT).unwrap_or(default_tuple);
+    let round_tag: &(String, String) = game.tags.iter().find(|tag| tag.to_owned().0 == ROUND).unwrap_or(default_tuple);
+    let mut replay_text = white_tag.to_owned().1;
+    replay_text.push_str(" vs ");
+    replay_text.push_str(&*black_tag.1);
+    replay_text.push_str(" at ");
+    replay_text.push_str(&*event_tag.1);
+    replay_text.push_str(" ");
+    replay_text.push_str(&*round_tag.1);
+    replay_text
+}
 
-fn draw_replay_for_pgn(canvas: &mut Canvas, maybe_pgn_ref: Option<&Pgn>, y_pos: i32, font_size: f32) -> Option<mxcfb_rect> {
+fn draw_button_for_pgn(canvas: &mut Canvas, maybe_pgn_ref: Option<&Pgn>, y_pos: i32, font_size: f32) -> Option<mxcfb_rect> {
     match maybe_pgn_ref {
-        Some(pgn_ref) => Some(canvas.draw_box_button(y_pos, 200, &*pgn_ref.path.file_name().unwrap().to_owned().into_string().unwrap_or("Can't read file name".to_string()), font_size)),
+        Some(pgn_ref) => Some(canvas.draw_box_button(y_pos, BOX_HEIGHT as u32, &*pgn_ref.path.file_name().unwrap().to_owned().into_string().unwrap_or("Can't read file name".to_string()), font_size)),
+        None => None
+    }
+}
+
+fn draw_button_for_game(canvas: &mut Canvas, maybe_game_ref: Option<&Game>, y_pos: i32, font_size: f32) -> Option<mxcfb_rect> {
+    match maybe_game_ref {
+        Some(game_ref) => Some(canvas.draw_box_button(y_pos, BOX_HEIGHT as u32, &*construct_text_for_replay(game_ref), font_size)),
         None => None
     }
 }

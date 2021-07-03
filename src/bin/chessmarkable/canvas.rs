@@ -202,6 +202,7 @@ impl<'a> Canvas<'a> {
 
     //Text size seems to vary
     //This ignores text size so that boxes line up deterministically
+    //Text ends up a bit off center though unfortunately
     pub fn draw_box_button(
         &mut self,
         y_pos: i32,

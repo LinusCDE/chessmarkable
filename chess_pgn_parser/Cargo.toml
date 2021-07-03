@@ -1,0 +1,21 @@
+[package]
+name = "chess_pgn_parser"
+description = "Chess Portable Game Notation parser"
+
+documentation = "https://github.com/hwiechers/chess_pgn_parser/blob/master/README.md"
+homepage = "https://github.com/hwiechers/chess_pgn_parser/"
+repository = "https://github.com/hwiechers/chess_pgn_parser/"
+
+readme = "README.md"
+
+keywords = ["chess", "pgn", "parser"]
+
+license = "MIT"
+
+version = "0.1.2"
+authors = ["Henri Wiechers <henri@wiechers.me>"]
+
+[dependencies]
+peggler="*"
+enum_primitive = "*"
+num = "*"
