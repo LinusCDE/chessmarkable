@@ -179,6 +179,27 @@ impl<'a> Canvas<'a> {
         )
     }
 
+    pub fn draw_box_button(
+        &mut self,
+        y_pos: Option<i32>,
+        text: &str,
+        font_size: f32,
+        vgap: u32,
+    ) -> mxcfb_rect {
+        let text_rect = self.draw_text(Point2 { x: None, y: y_pos }, text, font_size);
+        self.draw_rect(
+            Point2 {
+                x: Some(0 as i32),
+                y: Some((text_rect.top - vgap) as i32),
+            },
+            Vector2 {
+                x: DISPLAYWIDTH as u32,
+                y: vgap + text_rect.height + vgap,
+            },
+            5,
+        )
+    }
+
     /// Image that can be overlayed white respecting the previous pixels.
     /// This way transparent images can work.
     fn calc_overlay_image(

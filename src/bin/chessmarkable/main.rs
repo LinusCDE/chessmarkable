@@ -10,6 +10,7 @@ extern crate log;
 mod canvas;
 mod savestates;
 mod scene;
+mod pgns;
 
 use crate::canvas::Canvas;
 use crate::scene::*;
@@ -56,6 +57,14 @@ pub struct Opts {
         default_value = "/home/root/.config/chessmarkable/savestates.yml"
     )]
     savestates_file: std::path::PathBuf,
+
+    #[clap(
+        long,
+        short = 'p',
+        about = "Path to the file containing the PGNs for PGN viewer",
+        default_value = "/home/root/.config/chessmarkable/pgn"
+    )]
+    pgn_location: std::path::PathBuf,
 }
 
 lazy_static! {
@@ -169,6 +178,8 @@ fn update(
             return Box::new(BoardSelectScene::new(GameMode::NormalBot, pvp_rot_en));
         } else if main_menu_scene.play_hard_button_pressed {
             return Box::new(BoardSelectScene::new(GameMode::HardBot, pvp_rot_en));
+        } else if main_menu_scene.viewer_button_pressed {
+            return Box::new(PgnSelectScene::new(pvp_rot_en));
         } else if main_menu_scene.exit_xochitl_button_pressed {
             canvas.clear();
             canvas.update_full();
@@ -224,6 +235,13 @@ fn update(
                 board_select_scene.pvp_piece_rotation_enabled,
             ));
         } else if board_select_scene.back_button_pressed {
+            return Box::new(MainMenuScene::new(
+                only_exit_to_xochitl,
+                board_select_scene.pvp_piece_rotation_enabled,
+            ));
+        }
+    } else if let Some(board_select_scene) = scene.downcast_ref::<PgnSelectScene>() {
+        if board_select_scene.back_button_pressed {
             return Box::new(MainMenuScene::new(
                 only_exit_to_xochitl,
                 board_select_scene.pvp_piece_rotation_enabled,
