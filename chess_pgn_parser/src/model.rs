@@ -307,7 +307,7 @@ pub enum GameTermination {
     Unknown,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Game {
     pub tags: Vec<(String, String)>,
     pub comment: Option<String>,

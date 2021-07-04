@@ -10,6 +10,7 @@ use std::time::{Duration, SystemTime};
 use tokio::stream::StreamExt;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task;
+use chess_pgn_parser::Game;
 
 #[derive(Clone, Debug)]
 pub struct ChessConfig {
@@ -81,7 +82,7 @@ pub enum ChessUpdate {
     },
     CurrentTotalMovesReponse {
         total_moves: u16,
-    },
+    }
 }
 
 pub async fn create_game(

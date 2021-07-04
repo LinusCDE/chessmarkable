@@ -45,7 +45,7 @@ fn read_zero_or_more<F>(input: &str, predicate: F) -> ParseResult<&str>
 fn find_termination(input: &str) -> ParseResult<&str>
 {
 
-    let mut end= input.len();
+    let mut end= input.len()-1;
     let mut char_indices = input.char_indices();
     loop {
         match char_indices.next() {
@@ -176,7 +176,6 @@ fn trim_newline_and_space(mut s: String) -> String {
         if s.starts_with('\n') || s.starts_with('\r' ) || s.starts_with(' ') {
             let mut chars = s.chars();
             chars.next();
-            chars.next_back();
             s = chars.as_str().parse().unwrap()
         } else {
             break;

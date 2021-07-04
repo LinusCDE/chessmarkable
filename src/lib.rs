@@ -13,6 +13,7 @@ mod square;
 
 pub mod game;
 pub mod proto;
+pub mod replay;
 
 pub use player::Player;
 pub use square::Square;

@@ -8,32 +8,38 @@ use chess_pgn_parser::{Game, read_games};
 use std::fs::File;
 use std::io::Read;
 use regex::Regex;
+use crate::REPLAYS_PER_PAGE;
 
-const REPLAYS_PER_PAGE: u32 = 6;
 const BOX_HEIGHT: i32 = 180;
 const FIRST_BOX_Y_POS: i32 = 350;
 
-const EVENT: &str = "Event";
-const WHITE: &str = "White";
-const BLACK: &str = "Black";
-const ROUND: &str = "Round";
+const EVENT_TAG: &str = "Event";
+const WHITE_TAG: &str = "White";
+const BLACK_TAG: &str = "Black";
+const ROUND_TAG: &str = "Round";
 
 pub struct PgnSelectScene {
     drawn: bool,
-    game_vec: Vec<Game>,
+    pub game_vec: Vec<Game>,
     pgn_vec: Vec<Pgn>,
-    selected_pgn: Option<Pgn>,
+    pub selected_pgn: Option<Pgn>,
     selected_pgn_changed: bool,
 
     pub current_page_number: u32,
-    pub total_pages: u32,
+    total_pages: u32,
 
     button_1_hitbox: Option<mxcfb_rect>,
+    pub button_1_pressed: bool,
     button_2_hitbox: Option<mxcfb_rect>,
+    pub button_2_pressed: bool,
     button_3_hitbox: Option<mxcfb_rect>,
+    pub button_3_pressed: bool,
     button_4_hitbox: Option<mxcfb_rect>,
+    pub button_4_pressed: bool,
     button_5_hitbox: Option<mxcfb_rect>,
+    pub button_5_pressed: bool,
     button_6_hitbox: Option<mxcfb_rect>,
+    pub button_6_pressed: bool,
 
     next_page_button_hitbox: Option<mxcfb_rect>,
     prev_page_button_hitbox: Option<mxcfb_rect>,
@@ -44,26 +50,35 @@ pub struct PgnSelectScene {
 }
 
 impl PgnSelectScene {
-    pub fn new() -> Self {
+    pub fn new(
+        selected_pgn: Option<Pgn>,
+    ) -> Self {
+        let selected_pgn_changed = if selected_pgn.is_some() {true} else {false};
         Self {
             drawn: false,
             current_page_number: 0,
             total_pages: 1,
             button_1_hitbox: None,
+            button_1_pressed: false,
             button_2_hitbox: None,
+            button_2_pressed: false,
             button_3_hitbox: None,
+            button_3_pressed: false,
             button_4_hitbox: None,
+            button_4_pressed: false,
             button_5_hitbox: None,
+            button_5_pressed: false,
             button_6_hitbox: None,
             next_page_button_hitbox: None,
             prev_page_button_hitbox: None,
             back_button_hitbox: None,
             return_to_main_menu: false,
             indicate_loading: false,
-            selected_pgn_changed: false,
-            selected_pgn: None,
+            selected_pgn_changed,
+            selected_pgn,
             pgn_vec: vec![],
             game_vec: vec![],
+            button_6_pressed: false
         }
     }
 
@@ -84,10 +99,8 @@ impl Scene for PgnSelectScene {
     fn draw(&mut self, canvas: &mut Canvas) {
         if self.indicate_loading {
             self.indicate_loading(canvas);
-            self.indicate_loading = false;
             return;
         }
-
         if self.drawn {
             return;
         }
@@ -234,6 +247,36 @@ impl Scene for PgnSelectScene {
                         && Canvas::is_hitting(position, self.back_button_hitbox.unwrap())
                     {
                         self.unload_pgn();
+                    } else if self.button_1_hitbox.is_some()
+                        && Canvas::is_hitting(position, self.button_1_hitbox.unwrap())
+                    {
+                        self.indicate_loading = true;
+                        self.button_1_pressed = true;
+                    } else if self.button_2_hitbox.is_some()
+                        && Canvas::is_hitting(position, self.button_2_hitbox.unwrap())
+                    {
+                        self.indicate_loading = true;
+                        self.button_2_pressed = true;
+                    } else if self.button_3_hitbox.is_some()
+                        && Canvas::is_hitting(position, self.button_3_hitbox.unwrap())
+                    {
+                        self.indicate_loading = true;
+                        self.button_3_pressed = true;
+                    } else if self.button_4_hitbox.is_some()
+                        && Canvas::is_hitting(position, self.button_4_hitbox.unwrap())
+                    {
+                        self.indicate_loading = true;
+                        self.button_4_pressed = true;
+                    } else if self.button_5_hitbox.is_some()
+                        && Canvas::is_hitting(position, self.button_5_hitbox.unwrap())
+                    {
+                        self.indicate_loading = true;
+                        self.button_5_pressed = true;
+                    } else if self.button_6_hitbox.is_some()
+                        && Canvas::is_hitting(position, self.button_6_hitbox.unwrap())
+                    {
+                        self.indicate_loading = true;
+                        self.button_6_pressed = true;
                     }
                 } else {
                     if self.back_button_hitbox.is_some()
@@ -311,10 +354,10 @@ impl PgnSelectScene {
 
 fn construct_text_for_replay(mut game: &Game) -> String {
     let default_tuple: &(String, String) = &("N/A".parse().unwrap(), "N/A".parse().unwrap());
-    let white_tag: &(String, String) = game.tags.iter().find(|tag| tag.to_owned().0 == WHITE).unwrap_or(default_tuple);
-    let black_tag: &(String, String) = game.tags.iter().find(|tag| tag.to_owned().0 == BLACK).unwrap_or(default_tuple);
-    let event_tag: &(String, String) = game.tags.iter().find(|tag| tag.to_owned().0 == EVENT).unwrap_or(default_tuple);
-    let round_tag: &(String, String) = game.tags.iter().find(|tag| tag.to_owned().0 == ROUND).unwrap_or(default_tuple);
+    let white_tag: &(String, String) = game.tags.iter().find(|tag| tag.to_owned().0 == WHITE_TAG).unwrap_or(default_tuple);
+    let black_tag: &(String, String) = game.tags.iter().find(|tag| tag.to_owned().0 == BLACK_TAG).unwrap_or(default_tuple);
+    let event_tag: &(String, String) = game.tags.iter().find(|tag| tag.to_owned().0 == EVENT_TAG).unwrap_or(default_tuple);
+    let round_tag: &(String, String) = game.tags.iter().find(|tag| tag.to_owned().0 == ROUND_TAG).unwrap_or(default_tuple);
     let mut replay_text = white_tag.to_owned().1;
     replay_text.push_str(" vs ");
     replay_text.push_str(&*black_tag.1);
