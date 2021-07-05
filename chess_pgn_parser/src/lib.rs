@@ -166,11 +166,6 @@ fn block_comment_contents(input: &str) -> ParseResult<String> {
     read_zero_or_more(input, |char| char != '}').map(|r| (r.0.to_string(), r.1))
 }
 
-fn read_till_termination(input: &str) -> ParseResult<String> {
-    read_zero_or_more(input, |char| char != '}').map(|r| (r.0.to_string(), r.1))
-
-}
-
 fn trim_newline_and_space(mut s: String) -> String {
     loop {
         if s.starts_with('\n') || s.starts_with('\r' ) || s.starts_with(' ') {
@@ -204,7 +199,7 @@ pub fn read_games(input: &str) -> Result<Vec<Game>, ParseError> {
             },
             Err(_) => {
                 let term = find_termination(rest).unwrap();
-                let mut s = term.1.to_string().to_owned();
+                let s = term.1.to_string().to_owned();
                 stripped_value = trim_newline_and_space(s);
                 rest = &*stripped_value;
                 if rest.len() == 0 {

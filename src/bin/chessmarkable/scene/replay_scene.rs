@@ -1,16 +1,12 @@
 use super::Scene;
 use crate::canvas::*;
 use crate::CLI_OPTS;
-use anyhow::Result;
-use chessmarkable::proto::*;
-use chessmarkable::{Player, Square};
+use chessmarkable::{Square};
 use fxhash::{FxHashMap, FxHashSet};
 use libremarkable::image;
 use libremarkable::input::{multitouch, InputEvent};
-use pleco::bot_prelude::*;
-use pleco::{BitMove, Board, Piece};
+use pleco::{Board, Piece};
 use std::time::{Duration, SystemTime};
-use tokio::sync::mpsc::{channel, Receiver, Sender};
 use chess_pgn_parser::Game;
 use chessmarkable::replay::Replay;
 use crate::scene::game_scene::ALL_PIECES;
@@ -42,7 +38,6 @@ pub struct ReplayScene {
     /// is a easy way to update everything. Has a performance hit though.
     redraw_all_squares: bool,
     /// Resized to fit selected_square
-    square_size: u32,
     img_piece_moved_from: image::DynamicImage,
     img_piece_moved_to: image::DynamicImage,
     piece_padding: u32,
@@ -123,7 +118,6 @@ impl ReplayScene {
             board: Board::default(), // Temporary default (usually stays that but will change when having a custom fen)
             first_draw: true,
             piece_hitboxes,
-            square_size,
             piece_padding,
             overlay_padding,
             selected_square: None,

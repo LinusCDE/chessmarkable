@@ -1,16 +1,7 @@
 use crate::game::ChessGame;
-use crate::game::Player as PlecoPlayer;
 pub use crate::game::{ChessOutcome, SQ};
-use crate::{Player, Square};
-use anyhow::{Context, Result};
-use pleco::tools::Searcher;
-use serde::{Deserialize, Serialize};
-use std::thread;
-use std::time::{Duration, SystemTime};
-use tokio::stream::StreamExt;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::task;
-use chess_pgn_parser::{Game, GameMove, Move, GameTermination};
+use crate::{Square};
+use chess_pgn_parser::{GameMove, Move, GameTermination, Game};
 use chess_pgn_parser::Piece as LocalPiece;
 use chess_pgn_parser::Rank as LocalRank;
 use chess_pgn_parser::File as LocalFile;

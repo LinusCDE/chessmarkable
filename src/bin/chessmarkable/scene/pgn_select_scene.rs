@@ -1,6 +1,5 @@
 use super::Scene;
 use crate::canvas::*;
-use crate::savestates::Savestates;
 use crate::pgns::*;
 use libremarkable::input::{multitouch::MultitouchEvent, InputEvent};
 use anyhow::Error;
@@ -113,7 +112,7 @@ impl Scene for PgnSelectScene {
                 0 => 1,
                 num => (num as f64 / REPLAYS_PER_PAGE as f64).ceil() as u32
             };
-            self.pgn_vec = match crate::pgns::read(((self.current_page_number * REPLAYS_PER_PAGE) as usize), ((self.current_page_number + 1) * REPLAYS_PER_PAGE - 1) as usize) {
+            self.pgn_vec = match crate::pgns::read((self.current_page_number * REPLAYS_PER_PAGE) as usize, ((self.current_page_number + 1) * REPLAYS_PER_PAGE - 1) as usize) {
                 Ok(vec) => vec,
                 Err(_) => Vec::new()
             };
@@ -354,7 +353,7 @@ impl PgnSelectScene {
     }
 }
 
-fn construct_text_for_replay(mut game: &Game) -> String {
+fn construct_text_for_replay(game: &Game) -> String {
     let default_tuple: &(String, String) = &("N/A".parse().unwrap(), "N/A".parse().unwrap());
     let white_tag: &(String, String) = game.tags.iter().find(|tag| tag.to_owned().0 == WHITE_TAG).unwrap_or(default_tuple);
     let black_tag: &(String, String) = game.tags.iter().find(|tag| tag.to_owned().0 == BLACK_TAG).unwrap_or(default_tuple);
