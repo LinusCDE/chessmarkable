@@ -60,21 +60,45 @@ impl<'a> Canvas<'a> {
     }
 
     //Long text with draw_text layers on top of each other ending up in garbled output
-    //This is a quick hack
+    //This is a quick hack which tries to prevent word clipping
     //I've found that the remarkable can do about a 100 characters at 35.0 font size
     //if you're looking for a default that fits the whole screen
-    pub fn draw_multi_line_text(&mut self, x_pos: Option<i32>, y_pos: i32, text: &str, chars_per_line: usize, size: f32) -> mxcfb_rect {
+    pub fn draw_multi_line_text(&mut self, x_pos: Option<i32>, y_pos: i32, text: &str, max_chars_per_line: usize, size: f32) -> mxcfb_rect {
         if text.len() > 0 {
+            let result = text.chars().enumerate().fold(vec![], |mut acc, p| {
+                if p.1 == ' ' {
+                    acc.push(p.0);
+                    acc
+                } else {
+                    acc
+                }
+            });
             let mut vec_of_text = Vec::new();
             let mut peekable = text.chars().peekable();
             let mut last_text_height = 0;
             let mut last_text_y = y_pos;
+            let mut chars_taken_so_far = 0;
+            let total_iterations = text.chars().count() / max_chars_per_line;
+            let mut current_iteration = 1;
             while peekable.peek().is_some() {
-                let chunk: String = peekable.by_ref().take(chars_per_line).collect();
+                let mut chars_to_take: usize = max_chars_per_line;
+                if current_iteration > total_iterations {
+                    chars_to_take = (text.len() + 1) - chars_taken_so_far;
+                } else {
+                    let option_chars_to_take = result.iter().rev().find(|char| **char < chars_taken_so_far + max_chars_per_line);
+                    chars_to_take = match option_chars_to_take {
+                        None => max_chars_per_line,
+                        Some(chars) => chars - chars_taken_so_far
+                    };
+                    chars_taken_so_far = chars_taken_so_far + chars_to_take;
+                }
+
+                let chunk: String = peekable.by_ref().take(chars_to_take).collect();
                 let text_rect = self.draw_text(Point2{ x: x_pos, y: Some(last_text_y + last_text_height) }, &*chunk, size);
                 last_text_height = text_rect.height as i32 + 20;
                 last_text_y = text_rect.top as i32;
                 vec_of_text.push(text_rect);
+                current_iteration = current_iteration + 1;
             }
             mxcfb_rect {
                 top: vec_of_text.first().unwrap().top,
