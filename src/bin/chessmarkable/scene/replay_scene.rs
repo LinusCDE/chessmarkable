@@ -69,7 +69,7 @@ pub struct ReplayScene {
 impl ReplayScene {
     pub fn new(
         replay_info: Option<Game>,
-        selected_pgn: Option<Pgn>
+        selected_pgn: Option<Pgn>,
     ) -> Self {
         // Size of board
         let square_size = DISPLAYWIDTH as u32 / 8;
@@ -150,7 +150,7 @@ impl ReplayScene {
             possible_moves: vec![],
             replay: Replay::new(replay_info.expect("Couldn't read Replay Info")),
             move_comment_last_rect: None,
-            selected_pgn
+            selected_pgn,
         }
     }
 
@@ -311,10 +311,19 @@ impl ReplayScene {
     }
 
     fn on_user_move(&mut self, src: Square, dest: Square) {
+        let response = self.replay.player_move(src, dest);
+        self.update_board(&*response.fen);
+        self.clear_state_post_move();
+    }
+
+    fn clear_state_post_move(&mut self) {
         self.selected_square = None;
         self.finger_down_square = None;
         self.clear_move_hints();
         self.clear_last_moved_hints();
+        self.possible_moves = self.replay.possible_moves().iter()
+            .map(|bit_move| (bit_move.get_src().into(), bit_move.get_dest().into()))
+            .collect();
     }
 
     fn clear_last_moved_hints(&mut self) {
@@ -363,6 +372,13 @@ impl Scene for ReplayScene {
                 // Taps and buttons
                 match event {
                     multitouch::MultitouchEvent::Press { finger } => {
+                        for x in 0..8 {
+                            for y in 0..8 {
+                                if Canvas::is_hitting(finger.pos, self.piece_hitboxes[x][y]) {
+                                    self.finger_down_square = Some(to_square(x, y));
+                                }
+                            }
+                        }
                         if self.back_button_hitbox.is_some()
                             && Canvas::is_hitting(finger.pos, self.back_button_hitbox.unwrap())
                         {
@@ -381,15 +397,101 @@ impl Scene for ReplayScene {
                         )
                         {
                             let replay_response = self.replay.play_replay_move();
-                            self.update_board(&*replay_response.fen)
+                            self.update_board(&*replay_response.fen);
+                            self.clear_state_post_move();
+                            self.move_comment = replay_response.comment;
                         } else if self.reset_button_hitbox.is_some()
                             && Canvas::is_hitting(
                             finger.pos,
                             self.reset_button_hitbox.unwrap(),
-                        )
-                        {
+                        ) {
                             let replay_response = self.replay.reset();
-                            self.update_board(&*replay_response.fen)
+                            self.update_board(&*replay_response.fen);
+                            self.clear_state_post_move();
+                            self.move_comment = replay_response.comment;
+                        } else if self.undo_button_hitbox.is_some()
+                            && Canvas::is_hitting(
+                            finger.pos,
+                            self.undo_button_hitbox.unwrap(),
+                        ) {
+                            let replay_response = self.replay.undo_move();
+                            self.update_board(&*replay_response.fen);
+                            self.clear_state_post_move();
+                            self.move_comment = replay_response.comment;
+                        }
+                    }
+                    multitouch::MultitouchEvent::Release { finger } => {
+                        if !self.is_game_over {
+                            for x in 0..8 {
+                                for y in 0..8 {
+                                    if Canvas::is_hitting(finger.pos, self.piece_hitboxes[x][y]) {
+                                        let new_square = to_square(x, y);
+                                        if let Some(last_selected_square) = self.selected_square {
+                                            self.redraw_squares
+                                                .insert(last_selected_square.clone());
+
+                                            if last_selected_square == new_square {
+                                                // Cancel move
+                                                self.selected_square = None;
+                                                self.clear_move_hints();
+                                            } else {
+                                                // Attempt to move from last_selected_square to new_square if move is
+                                                // in self.possible_moves. Otherwise just select the piece on new_square.
+                                                // See https://github.com/LinusCDE/chessmarkable/issues/14
+                                                let is_possible_move = self
+                                                    .possible_moves
+                                                    .iter()
+                                                    .any(|(possible_src, possible_dest)| {
+                                                        possible_src == &last_selected_square
+                                                            && possible_dest == &new_square
+                                                    });
+                                                if is_possible_move {
+                                                    // Move
+                                                    self.redraw_squares.insert(new_square.clone());
+                                                    self.on_user_move(
+                                                        last_selected_square,
+                                                        new_square,
+                                                    );
+                                                } else {
+                                                    // Select new_square as new selected piece
+                                                    if self.board.piece_at_sq(*new_square)
+                                                        != Piece::None
+                                                    {
+                                                        self.selected_square = Some(new_square);
+                                                        self.redraw_squares
+                                                            .insert(new_square.clone());
+                                                        self.set_move_hints(new_square);
+                                                    } else {
+                                                        // Clear selection
+                                                        self.selected_square = None;
+                                                        self.clear_move_hints();
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            let finger_down_square = self
+                                                .finger_down_square
+                                                .unwrap_or(new_square.clone());
+                                            if finger_down_square.0 != new_square.0 {
+                                                // Do immeate move (swiped) without highlighting
+
+                                                self.redraw_squares
+                                                    .insert(finger_down_square.clone());
+                                                self.on_user_move(finger_down_square, new_square);
+                                            } else {
+                                                // Mark square
+                                                if self.board.piece_at_sq(*new_square)
+                                                    != Piece::None
+                                                {
+                                                    self.selected_square = Some(new_square);
+                                                    self.redraw_squares.insert(new_square.clone());
+                                                    self.set_move_hints(new_square);
+                                                }
+                                            }
+                                        };
+                                    }
+                                }
+                            }
                         }
                     }
                     _ => {}
@@ -406,7 +508,7 @@ impl Scene for ReplayScene {
             self.back_button_hitbox = Some(canvas.draw_button(
                 Point2 {
                     x: Some(50),
-                    y: Some(90),
+                    y: Some(1770),
                 },
                 "Quit",
                 75.0,
@@ -416,7 +518,7 @@ impl Scene for ReplayScene {
             self.full_refresh_button_hitbox = Some(canvas.draw_button(
                 Point2 {
                     x: Some((DISPLAYWIDTH - 260) as i32),
-                    y: Some(90),
+                    y: Some(1770),
                 },
                 "Refresh",
                 75.0,
@@ -425,7 +527,11 @@ impl Scene for ReplayScene {
             ));
             self.reset_button_hitbox = Some(canvas.draw_button(
                 Point2 {
-                    x: None,
+                    x: Some(
+                        self.back_button_hitbox.unwrap().left as i32 +
+                            self.back_button_hitbox.unwrap().width as i32
+                            + 405
+                    ),
                     y: Some(1770),
                 },
                 "Reset",
@@ -437,7 +543,7 @@ impl Scene for ReplayScene {
                 Point2 {
                     x: Some(
                         self.reset_button_hitbox.unwrap().left as i32
-                            - 230
+                            - 200
                     ),
                     y: Some(1780),
                 },
@@ -451,7 +557,7 @@ impl Scene for ReplayScene {
                     x: Some(
                         self.reset_button_hitbox.unwrap().left as i32
                             + self.reset_button_hitbox.unwrap().width as i32
-                            + 180
+                            + 150
                     ),
                     y: Some(1780),
                 },
@@ -511,12 +617,11 @@ impl Scene for ReplayScene {
             if let Some(ref comment) = self.move_comment {
                 // Old text was cleared above already
 
-                let rect = canvas.draw_text(
-                    Point2 {
-                        x: None,
-                        y: Some(10),
-                    },
+                let rect = canvas.draw_multi_line_text(
+                    None,
+                    50,
                     comment,
+                    100,
                     35.0,
                 );
                 canvas.update_partial(&rect);

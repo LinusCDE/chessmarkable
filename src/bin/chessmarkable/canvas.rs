@@ -59,6 +59,39 @@ impl<'a> Canvas<'a> {
         self.framebuffer_mut().wait_refresh_complete(update_marker);
     }
 
+    //Long text with draw_text layers on top of each other ending up in garbled output
+    //This is a quick hack
+    //I've found that the remarkable can do about a 100 characters at 35.0 font size
+    //if you're looking for a default that fits the whole screen
+    pub fn draw_multi_line_text(&mut self, x_pos: Option<i32>, y_pos: i32, text: &str, chars_per_line: usize, size: f32) -> mxcfb_rect {
+        if text.len() > 0 {
+            let mut vec_of_text = Vec::new();
+            let mut peekable = text.chars().peekable();
+            let mut last_text_height = 0;
+            let mut last_text_y = y_pos;
+            while peekable.peek().is_some() {
+                let chunk: String = peekable.by_ref().take(chars_per_line).collect();
+                let text_rect = self.draw_text(Point2{ x: x_pos, y: Some(last_text_y + last_text_height) }, &*chunk, size);
+                last_text_height = text_rect.height as i32 + 20;
+                last_text_y = text_rect.top as i32;
+                vec_of_text.push(text_rect);
+            }
+            mxcfb_rect {
+                top: vec_of_text.first().unwrap().top,
+                left: vec_of_text.iter().map(|&rec| rec.left).min().unwrap(),
+                width: vec_of_text.iter().map(|&rec| rec.width).max().unwrap(),
+                height: vec_of_text.iter().map(|&rec| rec.height).sum()
+            }
+        } else {
+            mxcfb_rect {
+                top: 0,
+                left: 0,
+                width: 0,
+                height: 0
+            }
+        }
+    }
+
     pub fn draw_text(&mut self, pos: Point2<Option<i32>>, text: &str, size: f32) -> mxcfb_rect {
         let mut pos = pos;
         if pos.x.is_none() || pos.y.is_none() {

@@ -129,8 +129,6 @@ impl ChessGame {
             self.outcome.is_none(),
             "Can't do move since the game has already ended."
         );
-        debug!("Trying To Move piece: {:?}", piece);
-        debug!("To destination: {:?}", destination);
         let piece_locations = self.board.get_piece_locations();
         let mut piece_type_locations = vec![];
         for loc in piece_locations {
