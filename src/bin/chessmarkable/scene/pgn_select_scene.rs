@@ -152,6 +152,8 @@ impl Scene for PgnSelectScene {
                 let result = re.replace_all(&*png_file_contents, "");
                 let re = Regex::new(r"\n").unwrap();
                 let result = re.replace_all(&*result, " ");
+                let re = Regex::new(r"\s\s").unwrap();
+                let result = re.replace_all(&*result, " ");
                 self.game_vec = match read_games(&result) {
                     Ok(games) => games,
                     Err(e) => {

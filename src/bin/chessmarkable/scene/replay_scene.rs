@@ -613,10 +613,12 @@ impl Scene for ReplayScene {
 
                 let rect = canvas.draw_multi_line_text(
                     None,
-                    50,
+                    40,
                     comment,
-                    100,
+                    95,
+                    7, //Comments longer than this will cut into the game screen - Hence a ~660ish characters limit
                     35.0,
+                    0.6
                 );
                 canvas.update_partial(&rect);
                 self.move_comment_last_rect = Some(rect);

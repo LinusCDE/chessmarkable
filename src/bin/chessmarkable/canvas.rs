@@ -63,9 +63,11 @@ impl<'a> Canvas<'a> {
     //This is a quick hack which tries to prevent word clipping
     //I've found that the remarkable can do about a 100 characters at 35.0 font size
     //if you're looking for a default that fits the whole screen
-    pub fn draw_multi_line_text(&mut self, x_pos: Option<i32>, y_pos: i32, text: &str, max_chars_per_line: usize, size: f32) -> mxcfb_rect {
-        if text.len() > 0 {
-            let result = text.chars().enumerate().fold(vec![], |mut acc, p| {
+    pub fn draw_multi_line_text(&mut self, x_pos: Option<i32>, y_pos: i32, text: &str, max_chars_per_line: usize, max_lines: usize, size: f32, line_spacing: f32) -> mxcfb_rect {
+        let text_length = text.chars().count();
+
+        if text_length > 0 {
+            let spaces_in_text = text.chars().enumerate().fold(vec![], |mut acc, p| {
                 if p.1 == ' ' {
                     acc.push(p.0);
                     acc
@@ -73,38 +75,38 @@ impl<'a> Canvas<'a> {
                     acc
                 }
             });
-            let mut vec_of_text = Vec::new();
+            let mut text_rects = Vec::new();
             let mut peekable = text.chars().peekable();
+
             let mut last_text_height = 0;
             let mut last_text_y = y_pos;
             let mut chars_taken_so_far = 0;
-            let total_iterations = text.chars().count() / max_chars_per_line;
-            let mut current_iteration = 1;
+
             while peekable.peek().is_some() {
                 let mut chars_to_take: usize = max_chars_per_line;
-                if current_iteration > total_iterations {
-                    chars_to_take = (text.len() + 1) - chars_taken_so_far;
+                if chars_taken_so_far + max_chars_per_line >= text_length {
+                    chars_to_take = (text_length + 1) - chars_taken_so_far;
                 } else {
-                    let option_chars_to_take = result.iter().rev().find(|char| **char < chars_taken_so_far + max_chars_per_line);
-                    chars_to_take = match option_chars_to_take {
+                    chars_to_take = match spaces_in_text.iter().rev().find(|char| **char < chars_taken_so_far + max_chars_per_line) {
                         None => max_chars_per_line,
                         Some(chars) => chars - chars_taken_so_far
                     };
                     chars_taken_so_far = chars_taken_so_far + chars_to_take;
                 }
-
                 let chunk: String = peekable.by_ref().take(chars_to_take).collect();
-                let text_rect = self.draw_text(Point2{ x: x_pos, y: Some(last_text_y + last_text_height) }, &*chunk, size);
-                last_text_height = text_rect.height as i32 + 20;
+                let text_rect = self.draw_text(Point2 { x: x_pos, y: Some(last_text_y + last_text_height) }, &*chunk, size);
+                last_text_height = text_rect.height as i32 + (size * line_spacing) as i32;
                 last_text_y = text_rect.top as i32;
-                vec_of_text.push(text_rect);
-                current_iteration = current_iteration + 1;
+                text_rects.push(text_rect);
+                if text_rects.len() == max_lines {
+                    break;
+                }
             }
             mxcfb_rect {
-                top: vec_of_text.first().unwrap().top,
-                left: vec_of_text.iter().map(|&rec| rec.left).min().unwrap(),
-                width: vec_of_text.iter().map(|&rec| rec.width).max().unwrap(),
-                height: vec_of_text.iter().map(|&rec| rec.height).sum()
+                top: text_rects.first().unwrap().top,
+                left: text_rects.iter().map(|&rec| rec.left).min().unwrap(),
+                width: text_rects.iter().map(|&rec| rec.width).max().unwrap(),
+                height: text_rects.iter().map(|&rec| rec.height).sum(),
             }
         } else {
             mxcfb_rect {
@@ -150,7 +152,7 @@ impl<'a> Canvas<'a> {
             .draw_text(pos, text.to_owned(), size, color::BLACK, false)
     }
 
-    fn draw_box(&mut self, pos: Point2<i32>, size: Vector2<u32>, border_px: u32, c: color) -> mxcfb_rect  {
+    fn draw_box(&mut self, pos: Point2<i32>, size: Vector2<u32>, border_px: u32, c: color) -> mxcfb_rect {
         let top_left = pos;
         let top_right = pos + vec2(size.x as i32, 0);
         let bottom_left = pos + vec2(0, size.y as i32);
@@ -277,7 +279,7 @@ impl<'a> Canvas<'a> {
                 y: y_height,
             },
             5,
-            color::BLACK
+            color::BLACK,
         );
         self.draw_text(Point2 { x: None, y: Some((button_hitbox.top + y_height / 2) as i32) }, text, font_size);
         button_hitbox
@@ -306,7 +308,7 @@ impl<'a> Canvas<'a> {
                 })
                 .unwrap(),
         )
-        .unwrap();
+            .unwrap();
 
         for (x, y, pixel) in rgba.enumerate_pixels() {
             let color_pix = [
