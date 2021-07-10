@@ -362,6 +362,31 @@ impl ReplayScene {
 impl Scene for ReplayScene {
     fn on_input(&mut self, event: InputEvent) {
         match event {
+            InputEvent::GPIO { event } => {
+                match event {
+                    gpio::GPIOEvent::Press { button } => {
+                        match button {
+                            gpio::PhysicalButton::RIGHT => {
+                                // Probably make separate function for it
+                                let replay_response = self.replay.play_replay_move();
+                                self.update_board(&replay_response.fen);
+                                self.clear_state_post_move();
+                                self.move_comment = replay_response.comment;
+                            },
+                            gpio::PhysicalButton::LEFT => {
+                                // Probably make separate function for it
+                                let replay_response = self.replay.undo_move();
+                                self.update_board(&*replay_response.fen);
+                                self.clear_state_post_move();
+                                self.move_comment = replay_response.comment;
+                            },
+                            _ => {}
+                        }
+                    }
+                    _ => {}
+                }
+            },
+        match event {
             InputEvent::MultitouchEvent { event } => {
                 // Taps and buttons
                 match event {
