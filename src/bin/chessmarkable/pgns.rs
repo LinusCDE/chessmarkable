@@ -18,7 +18,7 @@ pub fn read(from: usize, to: usize) -> Result<Vec<Pgn>> {
     } else {
         let elements_to_fetch = to - from + 1;
         let mut requested_pgns: Vec<Pgn> = Vec::with_capacity(elements_to_fetch);
-        for entry in glob(&construct_png_loc_pattern_string(pgn_loc)).
+        for entry in glob(&construct_pgn_loc_pattern_string(pgn_loc)).
             expect("Failed to read glob pattern")
             .skip(from)
             .take(elements_to_fetch) {
@@ -42,7 +42,7 @@ pub fn total_number_of_pgn() -> u32 {
         info!("No pgn directory found");
         0
     } else {
-        for entry in glob(&construct_png_loc_pattern_string(pgn_loc))
+        for entry in glob(&construct_pgn_loc_pattern_string(pgn_loc))
             .expect("Failed to read glob pattern") {
             match entry {
                 Ok(_) => pages = pages + 1,
@@ -53,7 +53,7 @@ pub fn total_number_of_pgn() -> u32 {
     }
 }
 
-fn construct_png_loc_pattern_string(pgn_loc: &PathBuf) -> String {
+fn construct_pgn_loc_pattern_string(pgn_loc: &PathBuf) -> String {
     let mut pgn_loc_str = pgn_loc.to_owned().into_os_string().into_string().unwrap();
     pgn_loc_str.push_str("/*.pgn");
     pgn_loc_str

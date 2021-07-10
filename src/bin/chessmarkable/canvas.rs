@@ -86,7 +86,7 @@ impl<'a> Canvas<'a> {
                 let mut chars_to_take: usize = max_chars_per_line;
                 if chars_taken_so_far + max_chars_per_line >= text_length {
                     chars_to_take = (text_length + 1) - chars_taken_so_far;
-                } else {
+                } else if text_rects.len() != max_lines - 1 {
                     chars_to_take = match spaces_in_text.iter().rev().find(|char| **char < chars_taken_so_far + max_chars_per_line) {
                         None => max_chars_per_line,
                         Some(chars) => chars - chars_taken_so_far

@@ -116,14 +116,17 @@ impl Scene for PgnSelectScene {
                 Ok(vec) => vec,
                 Err(_) => Vec::new()
             };
+            let mut no_pgn_found_str = "No PGNs found, please add them to: ".to_string();
+            no_pgn_found_str.push_str(&crate::CLI_OPTS.pgn_location.to_owned().into_os_string().into_string().unwrap());
             if self.pgn_vec.len() == 0 {
-                canvas.draw_text(
-                    Point2 {
-                        x: None,
-                        y: Some(700),
-                    },
-                    "No PGNs found in PGN directory",
-                    75.0,
+                canvas.draw_multi_line_text(
+                    None,
+                    700,
+                    &no_pgn_found_str,
+                    50,
+                    2,
+                    85.0,
+                    0.8
                 );
             } else {
                 canvas.draw_text(
