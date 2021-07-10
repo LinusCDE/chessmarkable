@@ -357,12 +357,9 @@ impl ReplayScene {
         self.board = new_board;
     }
 
-    fn play_replay_move(&mut self, replay_response: ReplayResponse, clear_old_comment: bool) {
+    fn play_replay_move(&mut self, replay_response: ReplayResponse) {
         self.update_board(&replay_response.fen);
         self.clear_state_post_move();
-        if clear_old_comment {
-
-        }
         self.move_comment = replay_response.comment;
         self.last_move_from = replay_response.last_move_from;
         self.last_move_to = replay_response.last_move_to;
