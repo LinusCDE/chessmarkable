@@ -201,7 +201,7 @@ pub fn read_games(input: &str) -> Result<Vec<Game>, ParseError> {
                 let term = find_termination(rest).unwrap();
                 let s = term.1.to_string().to_owned();
                 stripped_value = trim_newline_and_space(s);
-                rest = &*stripped_value;
+                rest = stripped_value.as_str();
                 if rest.len() == 0 {
                     break;
                 }

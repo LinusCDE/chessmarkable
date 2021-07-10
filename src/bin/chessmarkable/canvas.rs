@@ -94,7 +94,7 @@ impl<'a> Canvas<'a> {
                     chars_taken_so_far = chars_taken_so_far + chars_to_take;
                 }
                 let chunk: String = peekable.by_ref().take(chars_to_take).collect();
-                let text_rect = self.draw_text(Point2 { x: x_pos, y: Some(last_text_y + last_text_height) }, &*chunk, size);
+                let text_rect = self.draw_text(Point2 { x: x_pos, y: Some(last_text_y + last_text_height) }, chunk.as_str(), size);
                 last_text_height = text_rect.height as i32 + (size * line_spacing) as i32;
                 last_text_y = text_rect.top as i32;
                 text_rects.push(text_rect);

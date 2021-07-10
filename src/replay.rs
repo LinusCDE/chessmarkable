@@ -30,7 +30,7 @@ impl Replay {
         let starting_fen = replay_info.tags.iter().find(|tag| tag.to_owned().0 == FEN_TAG);
         let active_game_state = match starting_fen {
             Some(fen) =>
-                ChessGame::from_fen(&*fen.1).unwrap(),
+                ChessGame::from_fen(&fen.1).unwrap(),
             _ => {
                 ChessGame::default()
             }

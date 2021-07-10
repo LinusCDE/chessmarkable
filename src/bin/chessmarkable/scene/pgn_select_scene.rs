@@ -149,11 +149,11 @@ impl Scene for PgnSelectScene {
                 //Library doesn't play nice with comments inside brackets
                 //This gets rid of up to two levels of bracket nesting
                 let re = Regex::new(r"\((?:[^)(]|\((?:[^)(]|\([^)(]*\))*\))*\)").unwrap();
-                let result = re.replace_all(&*png_file_contents, "");
+                let result = re.replace_all(png_file_contents.as_str(), "");
                 let re = Regex::new(r"\n").unwrap();
-                let result = re.replace_all(&*result, " ");
+                let result = re.replace_all(&result, " ");
                 let re = Regex::new(r"\s\s").unwrap();
-                let result = re.replace_all(&*result, " ");
+                let result = re.replace_all(&result, " ");
                 self.game_vec = match read_games(&result) {
                     Ok(games) => games,
                     Err(e) => {
@@ -363,24 +363,24 @@ fn construct_text_for_replay(game: &Game) -> String {
     let round_tag: &(String, String) = game.tags.iter().find(|tag| tag.to_owned().0 == ROUND_TAG).unwrap_or(default_tuple);
     let mut replay_text = white_tag.to_owned().1;
     replay_text.push_str(" vs ");
-    replay_text.push_str(&*black_tag.1);
+    replay_text.push_str(&black_tag.1);
     replay_text.push_str(" at ");
-    replay_text.push_str(&*event_tag.1);
+    replay_text.push_str(&event_tag.1);
     replay_text.push_str(" ");
-    replay_text.push_str(&*round_tag.1);
+    replay_text.push_str(&round_tag.1);
     replay_text
 }
 
 fn draw_button_for_pgn(canvas: &mut Canvas, maybe_pgn_ref: Option<&Pgn>, y_pos: i32, font_size: f32) -> Option<mxcfb_rect> {
     match maybe_pgn_ref {
-        Some(pgn_ref) => Some(canvas.draw_box_button(y_pos, BOX_HEIGHT as u32, &*pgn_ref.path.file_name().unwrap().to_owned().into_string().unwrap_or("Can't read file name".to_string()), font_size)),
+        Some(pgn_ref) => Some(canvas.draw_box_button(y_pos, BOX_HEIGHT as u32, &pgn_ref.path.file_name().unwrap().to_owned().into_string().unwrap_or("Can't read file name".to_string()), font_size)),
         None => None
     }
 }
 
 fn draw_button_for_game(canvas: &mut Canvas, maybe_game_ref: Option<&Game>, y_pos: i32, font_size: f32) -> Option<mxcfb_rect> {
     match maybe_game_ref {
-        Some(game_ref) => Some(canvas.draw_box_button(y_pos, BOX_HEIGHT as u32, &*construct_text_for_replay(game_ref), font_size)),
+        Some(game_ref) => Some(canvas.draw_box_button(y_pos, BOX_HEIGHT as u32, &construct_text_for_replay(game_ref), font_size)),
         None => None
     }
 }

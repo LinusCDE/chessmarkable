@@ -4,7 +4,7 @@ use crate::CLI_OPTS;
 use chessmarkable::{Square};
 use fxhash::{FxHashMap, FxHashSet};
 use libremarkable::image;
-use libremarkable::input::{multitouch, InputEvent};
+use libremarkable::input::{multitouch, InputEvent, gpio};
 use pleco::{Board, Piece};
 use std::time::{Duration, SystemTime};
 use chess_pgn_parser::Game;
@@ -306,7 +306,7 @@ impl ReplayScene {
 
     fn on_user_move(&mut self, src: Square, dest: Square) {
         let response = self.replay.player_move(src, dest);
-        self.update_board(&*response.fen);
+        self.update_board(&response.fen);
         self.clear_state_post_move();
     }
 
@@ -385,8 +385,7 @@ impl Scene for ReplayScene {
                     }
                     _ => {}
                 }
-            },
-        match event {
+            }
             InputEvent::MultitouchEvent { event } => {
                 // Taps and buttons
                 match event {
@@ -416,7 +415,7 @@ impl Scene for ReplayScene {
                         )
                         {
                             let replay_response = self.replay.play_replay_move();
-                            self.update_board(&*replay_response.fen);
+                            self.update_board(&replay_response.fen);
                             self.clear_state_post_move();
                             self.move_comment = replay_response.comment;
                         } else if self.reset_button_hitbox.is_some()
@@ -425,7 +424,7 @@ impl Scene for ReplayScene {
                             self.reset_button_hitbox.unwrap(),
                         ) {
                             let replay_response = self.replay.reset();
-                            self.update_board(&*replay_response.fen);
+                            self.update_board(&replay_response.fen);
                             self.clear_state_post_move();
                             self.move_comment = replay_response.comment;
                         } else if self.undo_button_hitbox.is_some()
@@ -434,7 +433,7 @@ impl Scene for ReplayScene {
                             self.undo_button_hitbox.unwrap(),
                         ) {
                             let replay_response = self.replay.undo_move();
-                            self.update_board(&*replay_response.fen);
+                            self.update_board(&replay_response.fen);
                             self.clear_state_post_move();
                             self.move_comment = replay_response.comment;
                         }
