@@ -61,8 +61,8 @@ impl<'a> Canvas<'a> {
 
     //Long text with draw_text layers on top of each other ending up in garbled output
     //This is a quick hack which tries to prevent word clipping
-    //I've found that the remarkable can do about a 100 characters at 35.0 font size
-    //if you're looking for a default that fits the whole screen
+    //I've found that the remarkable can do about a 95 characters at 35.0 font size
+    //if you're looking for a nice default that fits the whole screen
     pub fn draw_multi_line_text(&mut self, x_pos: Option<i32>, y_pos: i32, text: &str, max_chars_per_line: usize, max_lines: usize, size: f32, line_spacing: f32) -> mxcfb_rect {
         let text_length = text.chars().count();
 

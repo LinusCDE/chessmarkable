@@ -123,7 +123,7 @@ impl ChessGame {
         }
     }
 
-    pub fn move_piece_by_type(&mut self, piece: Piece, destination: Square, src_col: Option<File>, src_row: Option<Rank>) -> Result<()> {
+    pub fn move_piece_by_type(&mut self, piece: Piece, destination: Square, src_col: Option<File>, src_row: Option<Rank>) -> Result<(Square, Square)> {
         ensure!(
             self.outcome.is_none(),
             "Can't do move since the game has already ended."
@@ -148,7 +148,7 @@ impl ChessGame {
         }
         let mut selected_move: Option<&BitMove> = None;
         if candidate_moves.len() == 1 {
-            selected_move = candidate_moves.first()
+            selected_move = candidate_moves.first();
         }
         if selected_move.is_none() && src_col.is_some() {
             selected_move = candidate_moves.iter().find(|bmove| bmove.src_col() == src_col.unwrap());
@@ -171,7 +171,7 @@ impl ChessGame {
         }
 
         self.update_game_outcome();
-        Ok(())
+        Ok((Square::from(SQ(selected_move.get_src_u8()) ), destination))
     }
 
     pub fn move_piece(&mut self, source: Square, destination: Square) -> Result<()> {

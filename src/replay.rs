@@ -7,12 +7,15 @@ use chess_pgn_parser::Rank as LocalRank;
 use chess_pgn_parser::File as LocalFile;
 use pleco::{Piece, Rank, File};
 use pleco::core::Piece::{WhitePawn, WhiteKnight, WhiteBishop, WhiteRook, WhiteQueen, WhiteKing, BlackPawn, BlackKing, BlackKnight, BlackBishop, BlackRook, BlackQueen};
+use anyhow::Error;
 
 const FEN_TAG: &str = "FEN";
 
 pub struct ReplayResponse {
     pub fen: String,
     pub comment: Option<String>,
+    pub last_move_from: Option<Square>,
+    pub last_move_to: Option<Square>,
 }
 
 pub struct Replay {
@@ -50,6 +53,8 @@ impl Replay {
 
     pub fn play_replay_move(&mut self) -> ReplayResponse {
         let mut comment: Option<String> = None;
+        let mut last_move_from: Option<Square> = None;
+        let mut last_move_to: Option<Square> = None;
         if self.replay_moves_played_offset + 1 <= self.replay_info.moves.len() && self.player_moves_played_offset == 0 {
             let played_move: GameMove = self.replay_info.moves[self.replay_moves_played_offset].clone();
             comment = played_move.comment;
@@ -68,19 +73,27 @@ impl Replay {
                 Move::CastleKingside => (Some(File::E), if self.is_white_turn { Some(Rank::R1) } else { Some(Rank::R8) }),
                 Move::CastleQueenside => (Some(File::E), if self.is_white_turn { Some(Rank::R1) } else { Some(Rank::R8) })
             };
-            self.active_game.move_piece_by_type(played_piece, Square::from(destination), src_col, src_row);
-            self.is_white_turn = !self.is_white_turn;
-            self.replay_moves_played_offset = self.replay_moves_played_offset + 1;
-            if self.replay_moves_played_offset == self.replay_info.moves.len() {
-                let termination_string = termination_string_from(self.replay_info.termination);
-                let mut last_move_comment = comment.unwrap_or("".into());
-                last_move_comment.push_str(termination_string);
-                comment = Some(last_move_comment);
+            match self.active_game.move_piece_by_type(played_piece, Square::from(destination), src_col, src_row) {
+                Ok((src, dest)) => {
+                    last_move_from = Some(src);
+                    last_move_to = Some(dest);
+                    self.is_white_turn = !self.is_white_turn;
+                    self.replay_moves_played_offset = self.replay_moves_played_offset + 1;
+                    if self.replay_moves_played_offset == self.replay_info.moves.len() {
+                        let termination_string = termination_string_from(self.replay_info.termination);
+                        let mut last_move_comment = comment.unwrap_or("".into());
+                        last_move_comment.push_str(termination_string);
+                        comment = Some(last_move_comment);
+                    }
+                }
+                Err(_) => {
+                    comment = Some("Error playing replay move, please check your PGN's validity".into())
+                }
             }
         } else if self.player_moves_played_offset > 0 {
             comment = Some("Undo Manual Moves before proceeding with replay".into())
         }
-        return ReplayResponse { fen: self.active_game.fen(), comment };
+        return ReplayResponse { fen: self.active_game.fen(), comment, last_move_from, last_move_to };
     }
 
     pub fn player_move(&mut self, source: Square, destination: Square) -> ReplayResponse {
@@ -90,7 +103,7 @@ impl Replay {
             }
             Err(_) => {}
         }
-        ReplayResponse { fen: self.active_game.fen(), comment: None }
+        ReplayResponse { fen: self.active_game.fen(), comment: None, last_move_from: Some(source), last_move_to: Some(destination) }
     }
 
     pub fn undo_move(&mut self) -> ReplayResponse {
@@ -102,7 +115,7 @@ impl Replay {
             self.replay_moves_played_offset = self.replay_moves_played_offset - 1;
             self.is_white_turn = !self.is_white_turn;
         }
-        return ReplayResponse { fen: self.active_game.fen(), comment: None };
+        return ReplayResponse { fen: self.active_game.fen(), comment: None, last_move_from: None, last_move_to: None };
     }
 
     pub fn reset(&mut self) -> ReplayResponse {
@@ -110,7 +123,7 @@ impl Replay {
         self.replay_moves_played_offset = 0;
         self.player_moves_played_offset = 0;
         self.is_white_turn = true;
-        return ReplayResponse { fen: self.active_game.fen(), comment: None };
+        return ReplayResponse { fen: self.active_game.fen(), comment: None, last_move_from: None, last_move_to: None };
     }
 }
 

@@ -8,7 +8,7 @@ use libremarkable::input::{multitouch, InputEvent, gpio};
 use pleco::{Board, Piece};
 use std::time::{Duration, SystemTime};
 use chess_pgn_parser::Game;
-use chessmarkable::replay::Replay;
+use chessmarkable::replay::{Replay, ReplayResponse};
 use crate::scene::game_scene::ALL_PIECES;
 use crate::scene::piece_images::get_orig_piece_img;
 use crate::scene::game_scene::IMG_PIECE_MOVED_TO;
@@ -306,8 +306,7 @@ impl ReplayScene {
 
     fn on_user_move(&mut self, src: Square, dest: Square) {
         let response = self.replay.player_move(src, dest);
-        self.update_board(&response.fen);
-        self.clear_state_post_move();
+        self.play_replay_move(response);
     }
 
     fn clear_state_post_move(&mut self) {
@@ -357,6 +356,17 @@ impl ReplayScene {
 
         self.board = new_board;
     }
+
+    fn play_replay_move(&mut self, replay_response: ReplayResponse, clear_old_comment: bool) {
+        self.update_board(&replay_response.fen);
+        self.clear_state_post_move();
+        if clear_old_comment {
+
+        }
+        self.move_comment = replay_response.comment;
+        self.last_move_from = replay_response.last_move_from;
+        self.last_move_to = replay_response.last_move_to;
+    }
 }
 
 impl Scene for ReplayScene {
@@ -367,18 +377,12 @@ impl Scene for ReplayScene {
                     gpio::GPIOEvent::Press { button } => {
                         match button {
                             gpio::PhysicalButton::RIGHT => {
-                                // Probably make separate function for it
-                                let replay_response = self.replay.play_replay_move();
-                                self.update_board(&replay_response.fen);
-                                self.clear_state_post_move();
-                                self.move_comment = replay_response.comment;
+                                let response = self.replay.play_replay_move();
+                                self.play_replay_move(response);
                             },
                             gpio::PhysicalButton::LEFT => {
-                                // Probably make separate function for it
-                                let replay_response = self.replay.undo_move();
-                                self.update_board(&*replay_response.fen);
-                                self.clear_state_post_move();
-                                self.move_comment = replay_response.comment;
+                                let response = self.replay.undo_move();
+                                self.play_replay_move(response);
                             },
                             _ => {}
                         }
@@ -414,28 +418,22 @@ impl Scene for ReplayScene {
                             self.next_move_button_hitbox.unwrap(),
                         )
                         {
-                            let replay_response = self.replay.play_replay_move();
-                            self.update_board(&replay_response.fen);
-                            self.clear_state_post_move();
-                            self.move_comment = replay_response.comment;
+                            let response = self.replay.play_replay_move();
+                            self.play_replay_move(response);
                         } else if self.reset_button_hitbox.is_some()
                             && Canvas::is_hitting(
                             finger.pos,
                             self.reset_button_hitbox.unwrap(),
                         ) {
-                            let replay_response = self.replay.reset();
-                            self.update_board(&replay_response.fen);
-                            self.clear_state_post_move();
-                            self.move_comment = replay_response.comment;
+                            let response = self.replay.reset();
+                            self.play_replay_move(response);
                         } else if self.undo_button_hitbox.is_some()
                             && Canvas::is_hitting(
                             finger.pos,
                             self.undo_button_hitbox.unwrap(),
                         ) {
-                            let replay_response = self.replay.undo_move();
-                            self.update_board(&replay_response.fen);
-                            self.clear_state_post_move();
-                            self.move_comment = replay_response.comment;
+                            let response = self.replay.undo_move();
+                            self.play_replay_move(response);
                         }
                     }
                     multitouch::MultitouchEvent::Release { finger } => {
