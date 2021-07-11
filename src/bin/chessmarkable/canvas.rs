@@ -89,7 +89,7 @@ impl<'a> Canvas<'a> {
                 } else if text_rects.len() != max_lines - 1 {
                     chars_to_take = match spaces_in_text.iter().rev().find(|char| **char < chars_taken_so_far + max_chars_per_line) {
                         None => max_chars_per_line,
-                        Some(chars) => chars - chars_taken_so_far
+                        Some(chars) => chars - (chars_taken_so_far - 1)
                     };
                     chars_taken_so_far = chars_taken_so_far + chars_to_take;
                 }
