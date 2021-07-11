@@ -22,6 +22,9 @@ serde = { version = "1", features = [ "derive" ] }
 serde_json = "1.0"
 serde_yaml = "0.8"
 thiserror = "1.0"
+glob = "0.3.0"
+chess_pgn_parser = "0.1.2"
+regex = "1.3.3"
 
 [dependencies.tokio]
 version = "0.2"
@@ -33,3 +36,6 @@ features = [
     "sync",
     "time"
 ]
+
+[patch.crates-io]
+chess_pgn_parser = { path = 'chess_pgn_parser' }

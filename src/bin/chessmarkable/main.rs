@@ -10,6 +10,7 @@ extern crate log;
 mod canvas;
 mod savestates;
 mod scene;
+mod pgns;
 
 use crate::canvas::Canvas;
 use crate::scene::*;
@@ -25,44 +26,55 @@ use std::thread::sleep;
 use std::time::{Duration, SystemTime};
 
 #[derive(Clap)]
-#[clap(version = crate_version!(), author = crate_authors!())]
+#[clap(version = crate_version ! (), author = crate_authors ! ())]
 pub struct Opts {
     #[clap(
-        long,
-        short = 'X',
-        about = "Stop xochitl service when a xochitl process is found. Useful when running without any launcher."
+    long,
+    short = 'X',
+    about = "Stop xochitl service when a xochitl process is found. Useful when running without any launcher."
     )]
     kill_xochitl: bool,
 
     #[clap(
-        long,
-        short = 'd',
-        default_value = "1500",
-        about = "Minimum amount of time, the bots wait before it makes its move in milliseconds"
+    long,
+    short = 'd',
+    default_value = "1500",
+    about = "Minimum amount of time, the bots wait before it makes its move in milliseconds"
     )]
     bot_reaction_delay: u16,
 
     #[clap(
-        long,
-        short = 'M',
-        about = "Disable merging individual field updates into one big partial draw"
+    long,
+    short = 'M',
+    about = "Disable merging individual field updates into one big partial draw"
     )]
     no_merge: bool,
 
     #[clap(
-        long,
-        short = 'f',
-        about = "Path to the file containing the savestates",
-        default_value = "/home/root/.config/chessmarkable/savestates.yml"
+    long,
+    short = 'f',
+    about = "Path to the file containing the savestates",
+    default_value = "/home/root/.config/chessmarkable/savestates.yml"
     )]
     savestates_file: std::path::PathBuf,
+
+    #[clap(
+    long,
+    short = 'p',
+    about = "Path to the file containing the PGNs for PGN viewer",
+    default_value = "/home/root/.config/chessmarkable/pgn"
+    )]
+    pgn_location: std::path::PathBuf,
 }
 
 lazy_static! {
     pub static ref CLI_OPTS: Opts = Opts::parse();
     pub static ref SAVESTATES: std::sync::Mutex<Savestates> =
         std::sync::Mutex::new(Default::default());
+        // Underlays / Background layers
 }
+
+pub const REPLAYS_PER_PAGE: u32 = 6;
 
 fn main() {
     let show_log_info = if env::var("RUST_LOG").is_err() {
@@ -74,21 +86,21 @@ fn main() {
     env_logger::init();
     if show_log_info {
         debug!(concat!(
-            "Debug Mode is enabled by default.\n",
-            "To change this, set the env \"RUST_LOG\" something else ",
-            "(e.g. info, warn, error or comma separated list of \"[module=]<level>\")."
+        "Debug Mode is enabled by default.\n",
+        "To change this, set the env \"RUST_LOG\" something else ",
+        "(e.g. info, warn, error or comma separated list of \"[module=]<level>\")."
         ));
     }
 
     if CURRENT_DEVICE.model == Model::Gen2 && std::env::var_os("LD_PRELOAD").is_none() {
         warn!(concat!(
-            "\n",
-            "You executed retris on a reMarkable 2 without having LD_PRELOAD set.\n",
-            "This suggests that you didn't use/enable rm2fb. Without rm2fb you\n",
-            "won't see anything on the display!\n",
-            "\n",
-            "See https://github.com/ddvk/remarkable2-framebuffer/ on how to solve\n",
-            "this. Launchers (installed through toltec) should automatically do this."
+        "\n",
+        "You executed retris on a reMarkable 2 without having LD_PRELOAD set.\n",
+        "This suggests that you didn't use/enable rm2fb. Without rm2fb you\n",
+        "won't see anything on the display!\n",
+        "\n",
+        "See https://github.com/ddvk/remarkable2-framebuffer/ on how to solve\n",
+        "this. Launchers (installed through toltec) should automatically do this."
         ));
     }
 
@@ -169,6 +181,8 @@ fn update(
             return Box::new(BoardSelectScene::new(GameMode::NormalBot, pvp_rot_en));
         } else if main_menu_scene.play_hard_button_pressed {
             return Box::new(BoardSelectScene::new(GameMode::HardBot, pvp_rot_en));
+        } else if main_menu_scene.viewer_button_pressed {
+            return Box::new(PgnSelectScene::new(None));
         } else if main_menu_scene.exit_xochitl_button_pressed {
             canvas.clear();
             canvas.update_full();
@@ -227,6 +241,50 @@ fn update(
             return Box::new(MainMenuScene::new(
                 only_exit_to_xochitl,
                 board_select_scene.pvp_piece_rotation_enabled,
+            ));
+        }
+    } else if let Some(board_select_scene) = scene.downcast_ref::<PgnSelectScene>() {
+        let index_of_first_game = (board_select_scene.current_page_number * REPLAYS_PER_PAGE) as usize;
+        if board_select_scene.return_to_main_menu {
+            return Box::new(MainMenuScene::new(
+                only_exit_to_xochitl,
+                false,
+            ));
+        } else if board_select_scene.button_1_pressed {
+            return Box::new(ReplayScene::new(
+                Some(board_select_scene.game_vec.get(index_of_first_game).unwrap().clone()),
+                board_select_scene.selected_pgn.clone()
+            ));
+        } else if board_select_scene.button_2_pressed {
+            return Box::new(ReplayScene::new(
+                Some(board_select_scene.game_vec.get(index_of_first_game + 1).unwrap().clone()),
+                board_select_scene.selected_pgn.clone()
+            ));
+        } else if board_select_scene.button_3_pressed {
+            return Box::new(ReplayScene::new(
+                Some(board_select_scene.game_vec.get(index_of_first_game + 2).unwrap().clone()),
+                board_select_scene.selected_pgn.clone()
+            ));
+        } else if board_select_scene.button_4_pressed {
+            return Box::new(ReplayScene::new(
+                Some(board_select_scene.game_vec.get(index_of_first_game + 3).unwrap().clone()),
+                board_select_scene.selected_pgn.clone()
+            ));
+        } else if board_select_scene.button_5_pressed {
+            return Box::new(ReplayScene::new(
+                Some(board_select_scene.game_vec.get(index_of_first_game + 4).unwrap().clone()),
+                board_select_scene.selected_pgn.clone()
+            ));
+        } else if board_select_scene.button_6_pressed {
+            return Box::new(ReplayScene::new(
+                Some(board_select_scene.game_vec.get(index_of_first_game + 5).unwrap().clone()),
+                board_select_scene.selected_pgn.clone()
+            ));
+        };
+    } else if let Some(board_select_scene) = scene.downcast_ref::<ReplayScene>() {
+        if board_select_scene.return_to_main_menu {
+            return Box::new(PgnSelectScene::new(
+                board_select_scene.selected_pgn.clone()
             ));
         }
     }
