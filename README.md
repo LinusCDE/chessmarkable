@@ -8,10 +8,9 @@
 
 A chess game for the reMarkable tablet writting using the [pleco](https://crates.io/crates/pleco) chess library which is a port of [Stockfish](https://stockfishchess.org/).
 
-<img src="https://transfer.cosmos-ink.net/VcnXJ/mainmenu.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/1WVcVVf/2.jpg" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/LZ9QT/3.jpg" width="30%">
+<img src="https://transfer.cosmos-ink.net/SF/mainmenu.png" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/1tRXA8n/pgnselect.png" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/LZ9QT/3.jpg" width="30%">
 
 ## Controlling
-
 A chess piece can be moved in two ways:
 
 1. Clicking it once and clicking the spot it's supposed to
@@ -26,6 +25,13 @@ When running the Game with the enviroment variable `RUST_LOG` set to `debug`, th
 When starting a game, you'll need to specifiy a slot to play on. On quitting the game, the FEN will get saved to `~/.config/chessmarkable/savestates.yml` which can be used to resume from.
 
 (The `-i` option was removed in favor to add your own fen to the above file).
+
+## PGN Viewer
+
+Chessmarkable also includes a PGN Player (huge thanks to [@rmadhwal](https://github.com/rmadhwal), for contributing this feature)!
+
+You can put downloaded PGN Files into the directory `~/.config/chessmarkable/pgn` on the device with software like scp, FileZilla or WinSCP.
+After this, you should be able to browse all the games from the menu point "PGN Viewer" and step through all the games.
 
 ## Installation
 
