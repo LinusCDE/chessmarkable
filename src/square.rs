@@ -81,7 +81,7 @@ impl std::str::FromStr for Square {
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         let chars: Vec<_> = s.chars().collect();
-        if (chars.len() != 2) {
+        if chars.len() != 2 {
             return Err(SquareFormatError::InvalidLength {
                 found: s.to_owned(),
             });

@@ -14,8 +14,7 @@ mod pgns;
 
 use crate::canvas::Canvas;
 use crate::scene::*;
-use anyhow::Context;
-use clap::{crate_authors, crate_version, Clap};
+use clap::{crate_authors, crate_version, Parser};
 use lazy_static::lazy_static;
 use libremarkable::device::{Model, CURRENT_DEVICE};
 use libremarkable::input::{ev::EvDevContext, InputDevice, InputEvent};
@@ -25,7 +24,7 @@ use std::process::Command;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime};
 
-#[derive(Clap)]
+#[derive(Parser)]
 #[clap(version = crate_version ! (), author = crate_authors ! ())]
 pub struct Opts {
     #[clap(

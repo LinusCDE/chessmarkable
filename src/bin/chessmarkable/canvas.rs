@@ -127,7 +127,7 @@ impl<'a> Canvas<'a> {
                     x: 0.0,
                     y: DISPLAYHEIGHT as f32,
                 },
-                text.to_owned(),
+                text,
                 size,
                 color::BLACK,
                 true,
@@ -149,7 +149,7 @@ impl<'a> Canvas<'a> {
         };
 
         self.framebuffer_mut()
-            .draw_text(pos, text.to_owned(), size, color::BLACK, false)
+            .draw_text(pos, text, size, color::BLACK, false)
     }
 
     fn draw_box(&mut self, pos: Point2<i32>, size: Vector2<u32>, border_px: u32, c: color) -> mxcfb_rect {
