@@ -7,7 +7,7 @@ use pleco::tools::Searcher;
 use serde::{Deserialize, Serialize};
 use std::thread;
 use std::time::{Duration, SystemTime};
-use tokio::stream::StreamExt;
+use tokio_stream::{StreamExt, wrappers::ReceiverStream};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task;
 use chess_pgn_parser::Game;
@@ -97,11 +97,17 @@ pub async fn create_game(
         ChessGame::default()
     };
 
-    let (mut white_tx, mut white_rx) = white;
-    let (mut black_tx, mut black_rx) = black;
-    let (mut spectators_tx, mut spectators_rx) = spectators;
+    let (mut white_tx, white_rx) = white;
+    let (mut black_tx, black_rx) = black;
+    let (mut spectators_tx, spectators_rx) = spectators;
 
-    let (combined_tx, mut combined_rx) = channel::<(Option<Player>, ChessRequest)>(1024);
+    let (combined_tx, combined_rx) = channel::<(Option<Player>, ChessRequest)>(1024);
+
+    // Wrap with tokio_stream's wrapper to have them implement Stream
+    let mut white_rx = ReceiverStream::new(white_rx);
+    let mut black_rx = ReceiverStream::new(black_rx);
+    let mut spectators_rx = ReceiverStream::new(spectators_rx);
+    let mut combined_rx = ReceiverStream::new(combined_rx);
 
     macro_rules! send_to_everyone {
         ($msg: expr) => {

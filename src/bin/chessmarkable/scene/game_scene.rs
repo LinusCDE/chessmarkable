@@ -181,9 +181,8 @@ impl GameScene {
             IMG_PIECE_MOVED_TO.resize(square_size, square_size, image::FilterType::Lanczos3);
 
         // Create game (will run on as many theads as the cpu has cores)
-        let mut runtime = runtime::Builder::new()
+        let mut runtime = runtime::Builder::new_multi_thread()
             .thread_name("tokio_game_scene")
-            .threaded_scheduler()
             //.max_threads(2)
             .build()
             .expect("Failed to create tokio runtime");
