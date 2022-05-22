@@ -132,7 +132,7 @@ fn main() {
         }
     };
 
-    let mut canvas = Canvas::new();
+    let mut canvas = Canvas::default();
 
     let (input_tx, input_rx) = std::sync::mpsc::channel::<InputEvent>();
     EvDevContext::new(InputDevice::GPIO, input_tx.clone()).start();

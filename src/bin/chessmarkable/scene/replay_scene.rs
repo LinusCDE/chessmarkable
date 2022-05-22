@@ -3,7 +3,7 @@ use crate::canvas::*;
 use crate::CLI_OPTS;
 use chessmarkable::{Square};
 use fxhash::{FxHashMap, FxHashSet};
-use libremarkable::image;
+use libremarkable::image::{self, imageops::FilterType};
 use libremarkable::input::{multitouch, InputEvent, gpio};
 use pleco::{Board, Piece};
 use std::time::{Duration, SystemTime};
@@ -94,24 +94,24 @@ impl ReplayScene {
                 get_orig_piece_img(piece).resize(
                     square_size - piece_padding * 2,
                     square_size - piece_padding * 2,
-                    image::FilterType::Lanczos3,
+                    FilterType::Lanczos3,
                 ),
             );
         }
         let img_piece_selected = IMG_PIECE_SELECTED.resize(
             square_size - overlay_padding * 2,
             square_size - overlay_padding * 2,
-            image::FilterType::Lanczos3,
+            FilterType::Lanczos3,
         );
         let img_piece_movehint = IMG_PIECE_MOVEHINT.resize(
             square_size - overlay_padding * 2,
             square_size - overlay_padding * 2,
-            image::FilterType::Lanczos3,
+            FilterType::Lanczos3,
         );
         let img_piece_moved_from =
-            IMG_PIECE_MOVED_FROM.resize(square_size, square_size, image::FilterType::Lanczos3);
+            IMG_PIECE_MOVED_FROM.resize(square_size, square_size, FilterType::Lanczos3);
         let img_piece_moved_to =
-            IMG_PIECE_MOVED_TO.resize(square_size, square_size, image::FilterType::Lanczos3);
+            IMG_PIECE_MOVED_TO.resize(square_size, square_size, FilterType::Lanczos3);
 
         //Replay Info
         Self {

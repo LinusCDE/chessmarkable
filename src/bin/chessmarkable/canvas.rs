@@ -10,23 +10,14 @@ use libremarkable::image;
 use std::ops::DerefMut;
 use libremarkable::cgmath::vec2;
 
-pub struct Canvas<'a> {
-    framebuffer: Box<Framebuffer<'a>>,
+#[derive(Default)]
+pub struct Canvas {
+    framebuffer: Box<Framebuffer>,
 }
 
-impl<'a> Canvas<'a> {
-    pub fn new() -> Self {
-        Self {
-            framebuffer: Box::new(Framebuffer::from_path("/dev/fb0")),
-        }
-    }
-
-    pub fn framebuffer_mut(&mut self) -> &'static mut Framebuffer<'static> {
-        unsafe {
-            std::mem::transmute::<_, &'static mut Framebuffer<'static>>(
-                self.framebuffer.deref_mut(),
-            )
-        }
+impl Canvas {
+    pub fn framebuffer_mut(&mut self) -> &mut Framebuffer {
+        &mut self.framebuffer
     }
 
     pub fn clear(&mut self) {
