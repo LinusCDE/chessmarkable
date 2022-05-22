@@ -14,7 +14,7 @@ mod pgns;
 
 use crate::canvas::Canvas;
 use crate::scene::*;
-use clap::{crate_authors, crate_version, Parser};
+use clap::Parser;
 use lazy_static::lazy_static;
 use libremarkable::device::{Model, CURRENT_DEVICE};
 use libremarkable::input::{ev::EvDevContext, InputDevice, InputEvent};
@@ -25,12 +25,12 @@ use std::thread::sleep;
 use std::time::{Duration, SystemTime};
 
 #[derive(Parser)]
-#[clap(version = crate_version ! (), author = crate_authors ! ())]
+#[clap(author, version)]
 pub struct Opts {
     #[clap(
     long,
     short = 'X',
-    about = "Stop xochitl service when a xochitl process is found. Useful when running without any launcher."
+    help = "Stop xochitl service when a xochitl process is found. Useful when running without any launcher."
     )]
     kill_xochitl: bool,
 
@@ -38,21 +38,21 @@ pub struct Opts {
     long,
     short = 'd',
     default_value = "1500",
-    about = "Minimum amount of time, the bots wait before it makes its move in milliseconds"
+    help = "Minimum amount of time, the bots wait before it makes its move in milliseconds"
     )]
     bot_reaction_delay: u16,
 
     #[clap(
     long,
     short = 'M',
-    about = "Disable merging individual field updates into one big partial draw"
+    help = "Disable merging individual field updates into one big partial draw"
     )]
     no_merge: bool,
 
     #[clap(
     long,
     short = 'f',
-    about = "Path to the file containing the savestates",
+    help = "Path to the file containing the savestates",
     default_value = "/home/root/.config/chessmarkable/savestates.yml"
     )]
     savestates_file: std::path::PathBuf,
@@ -60,7 +60,7 @@ pub struct Opts {
     #[clap(
     long,
     short = 'p',
-    about = "Path to the file containing the PGNs for PGN viewer",
+    help = "Path to the file containing the PGNs for PGN viewer",
     default_value = "/home/root/.config/chessmarkable/pgn"
     )]
     pgn_location: std::path::PathBuf,
