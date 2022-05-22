@@ -4,8 +4,8 @@ on:
     branches: [ master ]
 
 jobs:
-  check:
-    name: Check
+  audit:
+    name: Audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
