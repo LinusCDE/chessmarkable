@@ -91,18 +91,6 @@ fn main() {
         ));
     }
 
-    if CURRENT_DEVICE.model == Model::Gen2 && std::env::var_os("LD_PRELOAD").is_none() {
-        warn!(concat!(
-        "\n",
-        "You executed retris on a reMarkable 2 without having LD_PRELOAD set.\n",
-        "This suggests that you didn't use/enable rm2fb. Without rm2fb you\n",
-        "won't see anything on the display!\n",
-        "\n",
-        "See https://github.com/ddvk/remarkable2-framebuffer/ on how to solve\n",
-        "this. Launchers (installed through toltec) should automatically do this."
-        ));
-    }
-
     let only_exit_to_xochitl = if !CLI_OPTS.kill_xochitl {
         false
     } else if let Ok(status) = Command::new("pidof").arg("xochitl").status() {
