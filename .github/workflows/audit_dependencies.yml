@@ -1,9 +1,17 @@
+# Checking all used dependencies for known security vulns.
+#
+# Only checking on master since new vulns can appear during a PR,
+# but it's not that PR's job to fix these vulns right there.
+# The issue should only be shown up after merging and a separate PR
+# can be created to address the issue(s) then.
+
 name: Audit Dependencies
 on:
   push:
     branches: [ master ]
-
 jobs:
+
+
   audit:
     name: Audit
     runs-on: ubuntu-latest
