@@ -5,7 +5,7 @@
 # The issue should only be shown up after merging and a separate PR
 # can be created to address the issue(s) then.
 
-name: Audit Dependencies
+name: Audit dependencies
 on:
   push:
     branches: [ master ]

@@ -1,4 +1,4 @@
-name: Check and build code
+name: Check and build
 on: [ push, pull_request ]
 jobs:
 
@@ -8,10 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Basic cargo check
+      - uses: actions-rs/cargo@v1
         # TODO: Would be nice to get rid of all warnings at some
         #       point and make this check fail if any are found.
-        uses: actions-rs/cargo@v1
+        name: Run cargo check
         with:
           use-cross: true
           command: check
@@ -24,6 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/cargo@v1
+        name: Run cargo build --release
         with:
           use-cross: true
           command: build
