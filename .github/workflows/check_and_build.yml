@@ -1,4 +1,4 @@
-name: Check code
+name: Check and build code
 on: [ push, pull_request ]
 jobs:
 
