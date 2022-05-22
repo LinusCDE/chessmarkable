@@ -9,6 +9,8 @@ name: Audit Dependencies
 on:
   push:
     branches: [ master ]
+  schedule:
+    - cron: '@monthly'
 jobs:
 
 
