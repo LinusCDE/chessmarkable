@@ -1,7 +1,8 @@
 name: Check code
 on: [ push, pull_request ]
-
 jobs:
+
+
   check:
     name: Check
     runs-on: ubuntu-latest
@@ -15,6 +16,24 @@ jobs:
           use-cross: true
           command: check
           args: --target=armv7-unknown-linux-gnueabihf
+
+
+  build_snapshot:
+    name: Build snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/cargo@v1
+        name: Release build
+        with:
+          use-cross: true
+          command: build
+          args: --release --target=armv7-unknown-linux-gnueabihf
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ChessMarkable Snapshot
+          path: target/armv7-unknown-linux-gnueabihf/release/chessmarkable
+
 
 # TODO: Clippy, rustfmt and similar here as well
 # See https://actions-rs.github.io/
