@@ -10,7 +10,8 @@ on:
   push:
     branches: [ master ]
   # Also run monthly
-  schedule: [ '0 0 1 * *' ]
+  schedule:
+   - cron: '0 0 1 * *'
 jobs:
 
 
