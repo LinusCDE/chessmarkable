@@ -31,7 +31,7 @@ jobs:
           args: --release --target=armv7-unknown-linux-gnueabihf
       - uses: actions/upload-artifact@v3
         with:
-          name: ChessMarkable Snapshot
+          name: snapshot
           path: target/armv7-unknown-linux-gnueabihf/release/chessmarkable
 
 
