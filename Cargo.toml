@@ -25,7 +25,7 @@ thiserror = "1.0"
 glob = "0.3.0"
 chess_pgn_parser = "0.1.2"
 regex = "1.5"
-tokio = { version = "1.18", features = [ "rt", "rt-multi-thread", "sync", "time" ] }
+tokio = { version = "1.18", features = [ "rt-multi-thread", "sync" ] }
 tokio-stream = "0.1"
 
 [patch.crates-io]
