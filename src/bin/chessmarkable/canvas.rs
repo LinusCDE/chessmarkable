@@ -305,7 +305,7 @@ impl Canvas {
         button_hitbox
     }
 
-    /// Image that can be overlayed white respecting the previous pixels.
+    /// Image that can be overlayed while respecting the previous pixels.
     /// This way transparent images can work.
     fn calc_overlay_image(
         &mut self,
