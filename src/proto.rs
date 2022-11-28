@@ -1,16 +1,16 @@
 use crate::game::ChessGame;
-use crate::game::Player as PlecoPlayer;
+use crate::game::Player as TantonPlayer;
 pub use crate::game::{ChessOutcome, SQ};
 use crate::{Player, Square};
 use anyhow::{Context, Result};
-use pleco::tools::Searcher;
+use chess_pgn_parser::Game;
 use serde::{Deserialize, Serialize};
 use std::thread;
 use std::time::{Duration, SystemTime};
-use tokio_stream::{StreamExt, wrappers::ReceiverStream};
+use tanton::tools::Searcher;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task;
-use chess_pgn_parser::Game;
+use tokio_stream::{wrappers::ReceiverStream, StreamExt};
 
 #[derive(Clone, Debug)]
 pub struct ChessConfig {
@@ -82,7 +82,7 @@ pub enum ChessUpdate {
     },
     CurrentTotalMovesReponse {
         total_moves: u16,
-    }
+    },
 }
 
 pub async fn create_game(
@@ -180,8 +180,8 @@ pub async fn create_game(
         .map(|bit_move| (bit_move.get_src().into(), bit_move.get_dest().into()))
         .collect();
     match game.turn() {
-        PlecoPlayer::White => white_tx.clone(),
-        PlecoPlayer::Black => black_tx.clone(),
+        TantonPlayer::White => white_tx.clone(),
+        TantonPlayer::Black => black_tx.clone(),
     }
     .send(ChessUpdate::PossibleMoves { possible_moves })
     .await
@@ -347,8 +347,8 @@ pub async fn create_game(
                             .map(|bit_move| (bit_move.get_src().into(), bit_move.get_dest().into()))
                             .collect();
                         match game.turn() {
-                            PlecoPlayer::White => white_tx.clone(),
-                            PlecoPlayer::Black => black_tx.clone(),
+                            TantonPlayer::White => white_tx.clone(),
+                            TantonPlayer::Black => black_tx.clone(),
                         }
                         .send(ChessUpdate::PossibleMoves { possible_moves })
                         .await
@@ -388,7 +388,7 @@ pub async fn create_bot<T: Searcher>(
             match update {
                 ChessUpdate::PlayerSwitch { player, ref fen } => {
                     if player == me && current_outcome.is_none() {
-                        let board = pleco::Board::from_fen(fen)
+                        let board = tanton::Board::from_fen(fen)
                             .expect("Bot failed to parse the provided fen");
 
                         let bit_move = task::spawn_blocking(move || {

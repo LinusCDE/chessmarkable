@@ -6,11 +6,12 @@
 [![launchers](https://img.shields.io/badge/Launchers-supported-green)](https://github.com/reHackable/awesome-reMarkable#launchers)
 [![Mentioned in Awesome reMarkable](https://awesome.re/mentioned-badge.svg)](https://github.com/reHackable/awesome-reMarkable)
 
-A chess game for the reMarkable tablet writting using the [pleco](https://crates.io/crates/pleco) chess library which is a port of [Stockfish](https://stockfishchess.org/).
+A chess game for the reMarkable tablet writting using the [tanton](https://crates.io/crates/tanton) chess library which is a port of [Stockfish](https://stockfishchess.org/).
 
 <img src="https://transfer.cosmos-ink.net/SF/mainmenu.png" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/1tRXA8n/pgnselect.png" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/LZ9QT/3.jpg" width="30%">
 
 ## Controlling
+
 A chess piece can be moved in two ways:
 
 1. Clicking it once and clicking the spot it's supposed to
@@ -64,5 +65,5 @@ If you execute chessmarkable from ssh, be sure to have followed rm2fb steps to e
 
 ## Credit
 
-- The [pleco](https://crates.io/crates/pleco) library is used as the engine, checking valid moves and providing the bots
+- The [tanton](https://crates.io/crates/tanton) library is used as the engine, checking valid moves and providing the bots
 - The chess pices are from [pixabay here](https://pixabay.com/vectors/chess-pieces-set-symbols-game-26774/)

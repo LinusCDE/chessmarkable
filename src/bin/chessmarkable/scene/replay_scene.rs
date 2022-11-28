@@ -1,22 +1,21 @@
 use super::Scene;
 use crate::canvas::*;
+use crate::pgns::Pgn;
+use crate::scene::game_scene::ALL_PIECES;
+use crate::scene::game_scene::IMG_PIECE_MOVED_FROM;
+use crate::scene::game_scene::IMG_PIECE_MOVED_TO;
+use crate::scene::game_scene::IMG_PIECE_MOVEHINT;
+use crate::scene::game_scene::IMG_PIECE_SELECTED;
+use crate::scene::piece_images::get_orig_piece_img;
 use crate::CLI_OPTS;
-use chessmarkable::{Square};
-use fxhash::{FxHashMap, FxHashSet};
-use libremarkable::image::{self, imageops::FilterType};
-use libremarkable::input::{multitouch, InputEvent, gpio};
-use pleco::{Board, Piece};
-use std::time::{Duration, SystemTime};
 use chess_pgn_parser::Game;
 use chessmarkable::replay::{Replay, ReplayResponse};
-use crate::scene::game_scene::ALL_PIECES;
-use crate::scene::piece_images::get_orig_piece_img;
-use crate::scene::game_scene::IMG_PIECE_MOVED_TO;
-use crate::scene::game_scene::IMG_PIECE_SELECTED;
-use crate::scene::game_scene::IMG_PIECE_MOVEHINT;
-use crate::scene::game_scene::IMG_PIECE_MOVED_FROM;
-use crate::pgns::Pgn;
-
+use chessmarkable::Square;
+use fxhash::{FxHashMap, FxHashSet};
+use libremarkable::image::{self, imageops::FilterType};
+use libremarkable::input::{gpio, multitouch, InputEvent};
+use std::time::{Duration, SystemTime};
+use tanton::{Board, Piece};
 
 #[inline]
 fn to_square(x: usize, y: usize) -> Square {
@@ -62,10 +61,7 @@ pub struct ReplayScene {
 }
 
 impl ReplayScene {
-    pub fn new(
-        replay_info: Option<Game>,
-        selected_pgn: Option<Pgn>,
-    ) -> Self {
+    pub fn new(replay_info: Option<Game>, selected_pgn: Option<Pgn>) -> Self {
         // Size of board
         let square_size = DISPLAYWIDTH as u32 / 8;
         let piece_padding = square_size / 10;
@@ -201,7 +197,8 @@ impl ReplayScene {
                 let piece = self.board.piece_at_sq(*square);
                 if piece != Piece::None {
                     // Actual piece here
-                    let piece_img = &self.img_pieces
+                    let piece_img = &self
+                        .img_pieces
                         .get(&piece.character_lossy())
                         .expect("Failed to find resized piece img!");
                     canvas.draw_image(
@@ -314,7 +311,10 @@ impl ReplayScene {
         self.finger_down_square = None;
         self.clear_move_hints();
         self.clear_last_moved_hints();
-        self.possible_moves = self.replay.possible_moves().iter()
+        self.possible_moves = self
+            .replay
+            .possible_moves()
+            .iter()
             .map(|bit_move| (bit_move.get_src().into(), bit_move.get_dest().into()))
             .collect();
     }
@@ -369,24 +369,20 @@ impl ReplayScene {
 impl Scene for ReplayScene {
     fn on_input(&mut self, event: InputEvent) {
         match event {
-            InputEvent::GPIO { event } => {
-                match event {
-                    gpio::GPIOEvent::Press { button } => {
-                        match button {
-                            gpio::PhysicalButton::RIGHT => {
-                                let response = self.replay.play_replay_move();
-                                self.play_replay_move(response);
-                            },
-                            gpio::PhysicalButton::LEFT => {
-                                let response = self.replay.undo_move();
-                                self.play_replay_move(response);
-                            },
-                            _ => {}
-                        }
+            InputEvent::GPIO { event } => match event {
+                gpio::GPIOEvent::Press { button } => match button {
+                    gpio::PhysicalButton::RIGHT => {
+                        let response = self.replay.play_replay_move();
+                        self.play_replay_move(response);
+                    }
+                    gpio::PhysicalButton::LEFT => {
+                        let response = self.replay.undo_move();
+                        self.play_replay_move(response);
                     }
                     _ => {}
-                }
-            }
+                },
+                _ => {}
+            },
             InputEvent::MultitouchEvent { event } => {
                 // Taps and buttons
                 match event {
@@ -404,31 +400,24 @@ impl Scene for ReplayScene {
                             self.return_to_main_menu = true;
                         } else if self.full_refresh_button_hitbox.is_some()
                             && Canvas::is_hitting(
-                            finger.pos,
-                            self.full_refresh_button_hitbox.unwrap(),
-                        )
+                                finger.pos,
+                                self.full_refresh_button_hitbox.unwrap(),
+                            )
                         {
                             self.force_full_refresh = Some(SystemTime::now());
                         } else if self.next_move_button_hitbox.is_some()
-                            && Canvas::is_hitting(
-                            finger.pos,
-                            self.next_move_button_hitbox.unwrap(),
-                        )
+                            && Canvas::is_hitting(finger.pos, self.next_move_button_hitbox.unwrap())
                         {
                             let response = self.replay.play_replay_move();
                             self.play_replay_move(response);
                         } else if self.reset_button_hitbox.is_some()
-                            && Canvas::is_hitting(
-                            finger.pos,
-                            self.reset_button_hitbox.unwrap(),
-                        ) {
+                            && Canvas::is_hitting(finger.pos, self.reset_button_hitbox.unwrap())
+                        {
                             let response = self.replay.reset();
                             self.play_replay_move(response);
                         } else if self.undo_button_hitbox.is_some()
-                            && Canvas::is_hitting(
-                            finger.pos,
-                            self.undo_button_hitbox.unwrap(),
-                        ) {
+                            && Canvas::is_hitting(finger.pos, self.undo_button_hitbox.unwrap())
+                        {
                             let response = self.replay.undo_move();
                             self.play_replay_move(response);
                         }
@@ -541,9 +530,9 @@ impl Scene for ReplayScene {
             self.reset_button_hitbox = Some(canvas.draw_button(
                 Point2 {
                     x: Some(
-                        self.back_button_hitbox.unwrap().left as i32 +
-                            self.back_button_hitbox.unwrap().width as i32
-                            + 405
+                        self.back_button_hitbox.unwrap().left as i32
+                            + self.back_button_hitbox.unwrap().width as i32
+                            + 405,
                     ),
                     y: Some(1770),
                 },
@@ -554,10 +543,7 @@ impl Scene for ReplayScene {
             ));
             self.undo_button_hitbox = Some(canvas.draw_button(
                 Point2 {
-                    x: Some(
-                        self.reset_button_hitbox.unwrap().left as i32
-                            - 200
-                    ),
+                    x: Some(self.reset_button_hitbox.unwrap().left as i32 - 200),
                     y: Some(1780),
                 },
                 "<",
@@ -570,7 +556,7 @@ impl Scene for ReplayScene {
                     x: Some(
                         self.reset_button_hitbox.unwrap().left as i32
                             + self.reset_button_hitbox.unwrap().width as i32
-                            + 150
+                            + 150,
                     ),
                     y: Some(1780),
                 },
@@ -586,7 +572,6 @@ impl Scene for ReplayScene {
             // Refresh again after 500ms
             self.force_full_refresh = Some(SystemTime::now() + Duration::from_millis(250));
         }
-
 
         // Update board
         if self.redraw_all_squares || self.redraw_squares.len() > 0 {
@@ -604,9 +589,7 @@ impl Scene for ReplayScene {
         }
 
         // Clear previous text when changed or expired
-        if self.move_comment_last_rect.is_some()
-            && self.move_comment.is_some()
-        {
+        if self.move_comment_last_rect.is_some() && self.move_comment.is_some() {
             // Clear any previous text
             if let Some(ref last_rect) = self.move_comment_last_rect {
                 canvas.fill_rect(
@@ -631,13 +614,9 @@ impl Scene for ReplayScene {
                 // Old text was cleared above already
 
                 let rect = canvas.draw_multi_line_text(
-                    None,
-                    40,
-                    comment,
-                    95,
+                    None, 40, comment, 95,
                     7, //Comments longer than this will cut into the game screen - Hence a ~660ish characters limit
-                    35.0,
-                    0.6
+                    35.0, 0.6,
                 );
                 canvas.update_partial(&rect);
                 self.move_comment_last_rect = Some(rect);

@@ -1,7 +1,7 @@
 pub use crate::{Player, Square};
 use anyhow::Result;
-pub use pleco::{BitMove, Board, File, Piece, PieceType, Player as PlecoPlayer, Rank, SQ};
 use serde::{Deserialize, Serialize};
+pub use tanton::{BitMove, Board, File, Piece, PieceType, Player as TantonPlayer, Rank, SQ};
 
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ChessOutcome {
@@ -10,12 +10,12 @@ pub enum ChessOutcome {
     Aborted { who: Option<Player> },
 }
 
-/// Wrapper around plecos board.
+/// Wrapper around tantons board.
 /// Aims to be panic safe and not synchronize any internal data, meaning:
 ///  - no background tasks
 ///  - no changes without a mut access
 pub struct ChessGame {
-    board: pleco::Board,
+    board: tanton::Board,
     board_moves_played_offset: u16,
     outcome: Option<ChessOutcome>,
 }
@@ -70,7 +70,7 @@ impl ChessGame {
         self.total_moves() - self.board_moves_played_offset
     }
 
-    pub fn possible_moves(&self) -> pleco::MoveList {
+    pub fn possible_moves(&self) -> tanton::MoveList {
         self.board.generate_moves()
     }
 
@@ -123,7 +123,13 @@ impl ChessGame {
         }
     }
 
-    pub fn move_piece_by_type(&mut self, piece: Piece, destination: Square, src_col: Option<File>, src_row: Option<Rank>) -> Result<(Square, Square)> {
+    pub fn move_piece_by_type(
+        &mut self,
+        piece: Piece,
+        destination: Square,
+        src_col: Option<File>,
+        src_row: Option<Rank>,
+    ) -> Result<(Square, Square)> {
         ensure!(
             self.outcome.is_none(),
             "Can't do move since the game has already ended."
@@ -132,14 +138,16 @@ impl ChessGame {
         let mut piece_type_locations = vec![];
         for loc in piece_locations {
             if loc.1 == piece {
-                piece_type_locations.push(loc.0.0)
+                piece_type_locations.push(loc.0 .0)
             }
         }
         // Find a legal move for `source` and `destination`
         // (i.e. including promotions or other special data)
         let mut candidate_moves: Vec<BitMove> = Vec::new();
         for legal_move in self.board.generate_moves().iter() {
-            if piece_type_locations.contains(&legal_move.get_src_u8()) && legal_move.get_dest_u8() == destination.0 {
+            if piece_type_locations.contains(&legal_move.get_src_u8())
+                && legal_move.get_dest_u8() == destination.0
+            {
                 candidate_moves.push(legal_move.clone());
             }
         }
@@ -151,10 +159,14 @@ impl ChessGame {
             selected_move = candidate_moves.first();
         }
         if selected_move.is_none() && src_col.is_some() {
-            selected_move = candidate_moves.iter().find(|bmove| bmove.src_col() == src_col.unwrap());
+            selected_move = candidate_moves
+                .iter()
+                .find(|bmove| bmove.src_col() == src_col.unwrap());
         }
         if selected_move.is_none() && src_row.is_some() {
-            selected_move = candidate_moves.iter().find(|bmove| bmove.src_row() == src_row.unwrap());
+            selected_move = candidate_moves
+                .iter()
+                .find(|bmove| bmove.src_row() == src_row.unwrap());
         }
         if selected_move.is_none() {
             return Err(anyhow!("Move not found as possibility"));
@@ -171,7 +183,7 @@ impl ChessGame {
         }
 
         self.update_game_outcome();
-        Ok((Square::from(SQ(selected_move.get_src_u8()) ), destination))
+        Ok((Square::from(SQ(selected_move.get_src_u8())), destination))
     }
 
     pub fn move_piece(&mut self, source: Square, destination: Square) -> Result<()> {

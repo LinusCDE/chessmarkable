@@ -1,5 +1,6 @@
 use super::Scene;
 use crate::canvas::*;
+use crate::scene::piece_images::get_orig_piece_img;
 use crate::CLI_OPTS;
 use anyhow::Result;
 use chessmarkable::proto::*;
@@ -7,12 +8,11 @@ use chessmarkable::{Player, Square};
 use fxhash::{FxHashMap, FxHashSet};
 use libremarkable::image::{self, imageops::FilterType};
 use libremarkable::input::{multitouch, InputEvent};
-use pleco::bot_prelude::*;
-use pleco::{BitMove, Board, Piece};
 use std::time::{Duration, SystemTime};
+use tanton::bot_prelude::*;
+use tanton::{BitMove, Board, Piece};
 use tokio::runtime;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use crate::scene::piece_images::get_orig_piece_img;
 
 lazy_static! {
     // Underlays / Background layers

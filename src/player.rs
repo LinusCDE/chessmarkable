@@ -1,7 +1,7 @@
 use anyhow::Result;
-use pleco::Player as PlecoPlayer;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use tanton::Player as TantonPlayer;
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug, Serialize, Deserialize)]
 #[repr(u8)]
@@ -19,20 +19,20 @@ impl Player {
     }
 }
 
-impl From<PlecoPlayer> for Player {
-    fn from(pleco_player: PlecoPlayer) -> Self {
-        match pleco_player {
-            PlecoPlayer::Black => Player::Black,
-            PlecoPlayer::White => Player::White,
+impl From<TantonPlayer> for Player {
+    fn from(tanton_player: TantonPlayer) -> Self {
+        match tanton_player {
+            TantonPlayer::Black => Player::Black,
+            TantonPlayer::White => Player::White,
         }
     }
 }
 
-impl Into<PlecoPlayer> for Player {
-    fn into(self) -> PlecoPlayer {
+impl Into<TantonPlayer> for Player {
+    fn into(self) -> TantonPlayer {
         match self {
-            Player::Black => PlecoPlayer::Black,
-            Player::White => PlecoPlayer::White,
+            Player::Black => TantonPlayer::Black,
+            Player::White => TantonPlayer::White,
         }
     }
 }
