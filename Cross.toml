@@ -1,0 +1,7 @@
+[target.armv7-unknown-linux-gnueabihf]
+image = "ghcr.io/toltec-dev/rust:v3.2"
+# Config from /root/.cargo/config of above image:
+env.passthrough = [
+  "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc",
+  "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_RUSTFLAGS=-C link-arg=-march=armv7-a -C link-arg=-marm -C link-arg=-mfpu=neon -C link-arg=-mfloat-abi=hard -C link-arg=-mcpu=cortex-a9",
+]
