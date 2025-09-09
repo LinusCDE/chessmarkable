@@ -14,7 +14,7 @@ use model::GameTermination::{WhiteWins, BlackWins, DrawnGame, Unknown};
 
 use peggler::{ParseError, ParseResult};
 
-fn read_zero_or_more<F>(input: &str, predicate: F) -> ParseResult<&str>
+fn read_zero_or_more<'a, F>(input: &'a str, predicate: F) -> ParseResult<'a, &'a str>
     where
         F: Fn(char) -> bool,
 {
@@ -42,20 +42,20 @@ fn read_zero_or_more<F>(input: &str, predicate: F) -> ParseResult<&str>
     Ok((&input[..end], &input[end..]))
 }
 
-fn find_termination(input: &str) -> ParseResult<&str>
+fn find_termination<'a>(input: &'a str) -> ParseResult<'a, &'a str>
 {
 
-    let mut end= input.len()-1;
+    let end; // = input.len()-1;
     let mut char_indices = input.char_indices();
     loop {
         match char_indices.next() {
-            Some((index, char)) => {
+            Some((_index, char)) => {
                 if char == '0' {
                     match char_indices.next() {
-                        Some((index, char)) => {
+                        Some((_index, char)) => {
                             if char == '-' {
                                 match char_indices.next() {
-                                    Some((index, char)) => {
+                                    Some((_index, char)) => {
                                         if char == '1' {
                                             match char_indices.next() {
                                                 Some((index, char)) => {
@@ -79,7 +79,7 @@ fn find_termination(input: &str) -> ParseResult<&str>
                         Some((index, char)) => {
                             if char == '-' {
                                 match char_indices.next() {
-                                    Some((index, char)) => {
+                                    Some((_index, char)) => {
                                         if char == '0' {
                                             match char_indices.next() {
                                                 Some((index, char)) => {
@@ -116,7 +116,7 @@ fn find_termination(input: &str) -> ParseResult<&str>
 }
 
 
-fn read_one_or_more<F>(input: &str, predicate: F) -> ParseResult<&str>
+fn read_one_or_more<'a, F>(input: &'a str, predicate: F) -> ParseResult<'a, &'a str>
     where
         F: Fn(char) -> bool,
 {
@@ -130,7 +130,7 @@ fn read_one_or_more<F>(input: &str, predicate: F) -> ParseResult<&str>
     }
 }
 
-fn any_char(input: &str) -> ParseResult<char> {
+fn any_char<'a>(input: &'a str) -> ParseResult<'a, char> {
     let mut char_indices = input.char_indices();
     match char_indices.next() {
         Some((_, char)) => {
@@ -143,26 +143,26 @@ fn any_char(input: &str) -> ParseResult<char> {
     }
 }
 
-fn pgn_integer(input: &str) -> ParseResult<u32> {
+fn pgn_integer<'a>(input: &'a str) -> ParseResult<'a, u32> {
     read_one_or_more(input, |char| char.is_digit(10)).map(|r| (r.0.parse::<u32>().unwrap(), r.1))
 }
 
-fn pgn_symbol(input: &str) -> ParseResult<String> {
+fn pgn_symbol<'a>(input: &'a str) -> ParseResult<'a, String> {
     read_one_or_more(
         input,
         |char| char.is_alphanumeric() || "_+#=:".contains(char),
     ).map(|r| (r.0.to_string(), r.1))
 }
 
-fn whitespace(input: &str) -> ParseResult<()> {
+fn whitespace<'a>(input: &'a str) -> ParseResult<'a, ()> {
     read_one_or_more(input, |char| char.is_whitespace()).map(|r| ((), r.1))
 }
 
-fn inline_comment_contents(input: &str) -> ParseResult<String> {
+fn inline_comment_contents<'a>(input: &'a str) -> ParseResult<'a, String> {
     read_zero_or_more(input, |char| char != '\r' && char != '\n').map(|r| (r.0.to_string(), r.1))
 }
 
-fn block_comment_contents(input: &str) -> ParseResult<String> {
+fn block_comment_contents<'a>(input: &'a str) -> ParseResult<'a, String> {
     read_zero_or_more(input, |char| char != '}').map(|r| (r.0.to_string(), r.1))
 }
 
@@ -183,9 +183,9 @@ pub fn read_games(input: &str) -> Result<Vec<Game>, ParseError> {
     let mut games: Vec<Game> = vec![];
     let mut rest = &input[..];
 
-    let result = read_zero_or_more(&rest, |char| char.is_whitespace());
+    let result = read_zero_or_more(&rest, |char| char.is_whitespace())?;
     let mut stripped_value: String;
-    rest = result.unwrap().1;
+    rest = result.1;
 
     loop {
         let item = game(rest);
@@ -198,7 +198,7 @@ pub fn read_games(input: &str) -> Result<Vec<Game>, ParseError> {
                 }
             },
             Err(_) => {
-                let term = find_termination(rest).unwrap();
+                let term = find_termination(rest)?;
                 let s = term.1.to_string().to_owned();
                 stripped_value = trim_newline_and_space(s);
                 rest = stripped_value.as_str();

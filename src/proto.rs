@@ -10,7 +10,6 @@ use std::time::{Duration, SystemTime};
 use tokio_stream::{StreamExt, wrappers::ReceiverStream};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task;
-use chess_pgn_parser::Game;
 
 #[derive(Clone, Debug)]
 pub struct ChessConfig {
@@ -97,9 +96,9 @@ pub async fn create_game(
         ChessGame::default()
     };
 
-    let (mut white_tx, white_rx) = white;
-    let (mut black_tx, black_rx) = black;
-    let (mut spectators_tx, spectators_rx) = spectators;
+    let (white_tx, white_rx) = white;
+    let (black_tx, black_rx) = black;
+    let (spectators_tx, spectators_rx) = spectators;
 
     let (combined_tx, combined_rx) = channel::<(Option<Player>, ChessRequest)>(1024);
 
@@ -119,7 +118,7 @@ pub async fn create_game(
 
     // Redirect all rx streams into `combined_rx` with a supplied player for cleaner handling
     // TODO: Shorten/cleanup code
-    let mut combined_white_tx = combined_tx.clone();
+    let combined_white_tx = combined_tx.clone();
     task::spawn(async move {
         let player = Some(Player::White);
         loop {
@@ -143,7 +142,7 @@ pub async fn create_game(
             }
         }
     });
-    let mut combined_black_tx = combined_tx.clone();
+    let combined_black_tx = combined_tx.clone();
     task::spawn(async move {
         loop {
             let update = match black_rx.next().await {
@@ -155,7 +154,7 @@ pub async fn create_game(
             }
         }
     });
-    let mut combined_spectators_tx = combined_tx;
+    let combined_spectators_tx = combined_tx;
     task::spawn(async move {
         loop {
             let update = match spectators_rx.next().await {
@@ -379,7 +378,7 @@ pub async fn create_bot<T: Searcher>(
     min_reaction_delay: Duration,
 ) -> Result<(Sender<ChessUpdate>, Receiver<ChessRequest>)> {
     let (update_tx, mut update_rx) = channel::<ChessUpdate>(256);
-    let (mut request_tx, request_rx) = channel::<ChessRequest>(256);
+    let (request_tx, request_rx) = channel::<ChessRequest>(256);
 
     task::spawn(async move {
         info!("Bot spawned for {}", me);

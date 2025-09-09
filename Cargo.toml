@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 serde_string_derive = { path = "serde_string_derive" }
 
-libremarkable = { git = "https://github.com/canselcik/libremarkable.git", ref = "e9ae2461" }
+libremarkable = { git = "https://github.com/canselcik/libremarkable.git", rev = "e9ae2461" }
 anyhow = "1.0.33"
 clap = { version = "3.1", features = [ "derive" ] }
 downcast-rs = "1.2"
@@ -19,7 +19,6 @@ lazy_static = "1.4"
 log = "0.4"
 pleco = "0.5"
 serde = { version = "1", features = [ "derive" ] }
-serde_json = "1.0"
 serde_yaml = "0.8"
 thiserror = "1.0"
 glob = "0.3.0"

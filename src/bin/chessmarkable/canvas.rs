@@ -1,7 +1,7 @@
 use libremarkable::cgmath::vec2;
 pub use libremarkable::framebuffer::{
     cgmath::Point2, cgmath::Vector2, common::color, common::mxcfb_rect, common::DISPLAYHEIGHT,
-    common::DISPLAYWIDTH, core::Framebuffer, storage::rgbimage_from_u8_slice, FramebufferBase,
+    common::DISPLAYWIDTH, core::Framebuffer, storage::rgbimage_from_u8_slice,
     FramebufferDraw, FramebufferIO, FramebufferRefresh,
 };
 use libremarkable::framebuffer::{common::display_temp, common::dither_mode, common::waveform_mode, PartialRefreshMode};
@@ -41,10 +41,6 @@ impl Canvas {
             0, // See documentation on DRAWING_QUANT_BITS in libremarkable/framebuffer/common.rs
             false,
         )
-    }
-
-    pub fn wait_for_update(&mut self, update_marker: u32) {
-        self.framebuffer_mut().wait_refresh_complete(update_marker);
     }
 
     //Long text with draw_text layers on top of each other ending up in garbled output
@@ -310,8 +306,8 @@ impl Canvas {
         pos: Point2<i32>,
         img: &image::DynamicImage,
     ) -> image::RgbImage {
-        let rgba = img.to_rgba();
-        let mut rgb = img.to_rgb();
+        let rgba = img.to_rgba8();
+        let mut rgb = img.to_rgb8();
 
         let orig_rgb888 = rgbimage_from_u8_slice(
             rgba.width(),
@@ -363,7 +359,7 @@ impl Canvas {
         let rgb_img = if is_transparent {
             self.calc_overlay_image(pos, img)
         } else {
-            img.to_rgb()
+            img.to_rgb8()
         };
 
         self.framebuffer_mut().draw_image(&rgb_img, pos);

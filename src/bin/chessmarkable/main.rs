@@ -16,7 +16,6 @@ use crate::canvas::Canvas;
 use crate::scene::*;
 use clap::Parser;
 use lazy_static::lazy_static;
-use libremarkable::device::{Model, CURRENT_DEVICE};
 use libremarkable::input::{ev::EvDevContext, InputDevice, InputEvent};
 use savestates::Savestates;
 use std::env;

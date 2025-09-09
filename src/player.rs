@@ -1,4 +1,3 @@
-use anyhow::Result;
 use pleco::Player as PlecoPlayer;
 use serde::{Deserialize, Serialize};
 use std::fmt;

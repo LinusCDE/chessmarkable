@@ -1,14 +1,13 @@
 use super::Scene;
 use crate::canvas::*;
 use crate::CLI_OPTS;
-use anyhow::Result;
 use chessmarkable::proto::*;
 use chessmarkable::{Player, Square};
 use fxhash::{FxHashMap, FxHashSet};
 use libremarkable::image::{self, imageops::FilterType};
-use libremarkable::input::{multitouch, InputEvent, MultitouchEvent};
+use libremarkable::input::{InputEvent, MultitouchEvent};
 use pleco::bot_prelude::*;
-use pleco::{BitMove, Board, Piece};
+use pleco::{Board, Piece};
 use std::time::{Duration, SystemTime};
 use tokio::runtime;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
@@ -88,8 +87,6 @@ pub struct GameScene {
     /// If the amount of changes squares cannot be easily decided this
     /// is a easy way to update everything. Has a performance hit though.
     redraw_all_squares: bool,
-    /// Resized to fit selected_square
-    square_size: u32,
     img_piece_moved_from: image::DynamicImage,
     img_piece_moved_to: image::DynamicImage,
     piece_padding: u32,
@@ -181,22 +178,22 @@ impl GameScene {
             IMG_PIECE_MOVED_TO.resize(square_size, square_size, FilterType::Lanczos3);
 
         // Create game (will run on as many theads as the cpu has cores)
-        let mut runtime = runtime::Builder::new_multi_thread()
+        let runtime = runtime::Builder::new_multi_thread()
             .thread_name("tokio_game_scene")
             //.max_threads(2)
             .build()
             .expect("Failed to create tokio runtime");
-
-        let mut white_request_sender: Option<Sender<ChessRequest>> = None;
-        let mut black_request_sender: Option<Sender<ChessRequest>> = None;
-        let mut white_update_receiver: Option<Receiver<ChessUpdate>> = None;
-        let mut black_update_receiver: Option<Receiver<ChessUpdate>> = None;
 
         let starting_fen = match savestate_slot {
             SavestateSlot::First => crate::SAVESTATES.lock().unwrap().slot_1.clone(),
             SavestateSlot::Second => crate::SAVESTATES.lock().unwrap().slot_2.clone(),
             SavestateSlot::Third => crate::SAVESTATES.lock().unwrap().slot_3.clone(),
         };
+
+        let white_request_sender: Option<Sender<ChessRequest>>;
+        let black_request_sender: Option<Sender<ChessRequest>>;
+        let white_update_receiver: Option<Receiver<ChessUpdate>>;
+        let black_update_receiver: Option<Receiver<ChessUpdate>>;
 
         if game_mode == GameMode::PvP {
             let (white_update_tx, white_update_rx) = channel::<ChessUpdate>(256);
@@ -262,7 +259,9 @@ impl GameScene {
             ));
 
             white_request_sender = Some(white_request_tx);
+            black_request_sender = None;
             white_update_receiver = Some(white_update_rx);
+            black_update_receiver = None;
         }
 
         Self {
@@ -271,7 +270,6 @@ impl GameScene {
             game_mode,
             savestate_slot,
             piece_hitboxes,
-            square_size,
             piece_padding,
             overlay_padding,
             selected_square: None,
@@ -342,12 +340,6 @@ impl GameScene {
         } else if self.is_game_over {
             // Probably undone a move. Is not gameover anymore
             self.is_game_over = false;
-        }
-    }
-
-    fn clear_bottom_game_info(&mut self) {
-        if self.draw_game_bottom_info_last_rect.is_some() {
-            self.draw_game_bottom_info_clear_at = Some(SystemTime::now());
         }
     }
 
@@ -550,7 +542,7 @@ impl GameScene {
             );
             return;
         }
-        let mut sender = sender.unwrap();
+        let sender = sender.unwrap();
         self.runtime.spawn(async move {
             sender
                 .send(ChessRequest::MovePiece {
@@ -620,7 +612,7 @@ impl GameScene {
     }
 
     fn handle_updates(&mut self, player: Player, update_receiver: &mut Receiver<ChessUpdate>) {
-        for update in update_receiver.try_recv() {
+        while let Ok(update) = update_receiver.try_recv() {
             //debug!("Got update for {}: {:#?}", player, update);
             match update {
                 ChessUpdate::Board { ref fen } => self.update_board(fen),
@@ -798,7 +790,7 @@ impl Scene for GameScene {
                                     Some(Duration::from_secs(3)),
                                 );
                             } else {
-                                let mut sender = sender.unwrap();
+                                let sender = sender.unwrap();
                                 self.runtime.spawn(async move {
                                     sender
                                         .send(ChessRequest::UndoMoves { moves: undo_count })

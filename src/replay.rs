@@ -7,7 +7,6 @@ use chess_pgn_parser::Rank as LocalRank;
 use chess_pgn_parser::File as LocalFile;
 use pleco::{Piece, Rank, File};
 use pleco::core::Piece::{WhitePawn, WhiteKnight, WhiteBishop, WhiteRook, WhiteQueen, WhiteKing, BlackPawn, BlackKing, BlackKnight, BlackBishop, BlackRook, BlackQueen};
-use anyhow::Error;
 
 const FEN_TAG: &str = "FEN";
 
@@ -108,10 +107,10 @@ impl Replay {
 
     pub fn undo_move(&mut self) -> ReplayResponse {
         if self.player_moves_played_offset > 0 {
-            self.active_game.undo(1);
+            self.active_game.undo(1).ok();
             self.player_moves_played_offset = self.player_moves_played_offset - 1;
         } else if self.replay_moves_played_offset > 0 {
-            self.active_game.undo(1);
+            self.active_game.undo(1).ok();
             self.replay_moves_played_offset = self.replay_moves_played_offset - 1;
             self.is_white_turn = !self.is_white_turn;
         }

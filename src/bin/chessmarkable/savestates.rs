@@ -1,7 +1,5 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::io::{Read, Write};
-use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize)]
 pub struct Savestates {

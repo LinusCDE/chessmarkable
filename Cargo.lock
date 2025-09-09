@@ -160,7 +160,6 @@ dependencies = [
  "pleco",
  "regex",
  "serde",
- "serde_json",
  "serde_string_derive",
  "serde_yaml",
  "thiserror",
@@ -464,12 +463,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1745979ddec01f66bfed491fee60958959015239cb9c8878960a18cb73906be7"
 
 [[package]]
-name = "itoa"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "112c678d4050afce233f4f2852bb2eb519230b3cf12f33585275537d7e41578d"
-
-[[package]]
 name = "jobserver"
 version = "0.1.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -502,7 +495,7 @@ checksum = "349d5a591cd28b49e1d1037471617a32ddcda5731b99419008085f72d5a53836"
 [[package]]
 name = "libremarkable"
 version = "0.7.0"
-source = "git+https://github.com/canselcik/libremarkable.git#a9f85f22d6be3932946b31471bd9959c3757bff3"
+source = "git+https://github.com/canselcik/libremarkable.git?rev=e9ae2461#e9ae24611338cac6d9fba71d0ae9917d71d42970"
 dependencies = [
  "aabb-quadtree",
  "cgmath",
@@ -1038,17 +1031,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "serde_json"
-version = "1.0.81"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b7ce2b32a1aed03c558dc61a5cd328f15aff2dbc17daad8fb8af04d2100e15c"
-dependencies = [
- "itoa",
- "ryu",
- "serde",
 ]
 
 [[package]]

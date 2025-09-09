@@ -1,7 +1,7 @@
 pub use crate::game::SQ;
 use crate::game::{File, Rank};
-use anyhow::{Context, Result};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use anyhow::Result;
+use serde::{Deserializer, Serializer};
 use serde_string_derive::SerdeDisplayFromStr;
 use std::fmt;
 use thiserror::Error;
