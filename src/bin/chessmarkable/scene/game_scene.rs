@@ -6,7 +6,7 @@ use chessmarkable::proto::*;
 use chessmarkable::{Player, Square};
 use fxhash::{FxHashMap, FxHashSet};
 use libremarkable::image::{self, imageops::FilterType};
-use libremarkable::input::{multitouch, InputEvent};
+use libremarkable::input::{multitouch, InputEvent, MultitouchEvent};
 use pleco::bot_prelude::*;
 use pleco::{BitMove, Board, Piece};
 use std::time::{Duration, SystemTime};
@@ -727,7 +727,7 @@ impl Scene for GameScene {
             InputEvent::MultitouchEvent { event } => {
                 // Taps and buttons
                 match event {
-                    multitouch::MultitouchEvent::Press { finger } => {
+                    MultitouchEvent::Press { finger } => {
                         for x in 0..8 {
                             for y in 0..8 {
                                 if Canvas::is_hitting(finger.pos, self.piece_hitboxes[x][y]) {
@@ -736,7 +736,7 @@ impl Scene for GameScene {
                             }
                         }
                     }
-                    multitouch::MultitouchEvent::Release { finger } => {
+                    MultitouchEvent::Release { finger } => {
                         if self.back_button_hitbox.is_some()
                             && Canvas::is_hitting(finger.pos, self.back_button_hitbox.unwrap())
                         {

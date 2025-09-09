@@ -1,7 +1,6 @@
 use super::Scene;
 use crate::canvas::*;
-use crate::savestates::Savestates;
-use libremarkable::input::{multitouch::MultitouchEvent, InputEvent};
+use libremarkable::input::{InputEvent, MultitouchEvent};
 
 pub struct BoardSelectScene {
     drawn: bool,

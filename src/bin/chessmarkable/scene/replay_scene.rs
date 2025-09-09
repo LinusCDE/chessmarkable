@@ -4,9 +4,9 @@ use crate::CLI_OPTS;
 use chessmarkable::{Square};
 use fxhash::{FxHashMap, FxHashSet};
 use libremarkable::image::{self, imageops::FilterType};
-use libremarkable::input::{multitouch, InputEvent, gpio};
 use pleco::{Board, Piece};
 use std::time::{Duration, SystemTime};
+use libremarkable::input::{GPIOEvent, InputEvent, MultitouchEvent, PhysicalButton};
 use chess_pgn_parser::Game;
 use chessmarkable::replay::{Replay, ReplayResponse};
 use crate::scene::game_scene::ALL_PIECES;
@@ -371,13 +371,13 @@ impl Scene for ReplayScene {
         match event {
             InputEvent::GPIO { event } => {
                 match event {
-                    gpio::GPIOEvent::Press { button } => {
+                    GPIOEvent::Press { button } => {
                         match button {
-                            gpio::PhysicalButton::RIGHT => {
+                            PhysicalButton::RIGHT => {
                                 let response = self.replay.play_replay_move();
                                 self.play_replay_move(response);
                             },
-                            gpio::PhysicalButton::LEFT => {
+                            PhysicalButton::LEFT => {
                                 let response = self.replay.undo_move();
                                 self.play_replay_move(response);
                             },
@@ -390,7 +390,7 @@ impl Scene for ReplayScene {
             InputEvent::MultitouchEvent { event } => {
                 // Taps and buttons
                 match event {
-                    multitouch::MultitouchEvent::Press { finger } => {
+                    MultitouchEvent::Press { finger } => {
                         for x in 0..8 {
                             for y in 0..8 {
                                 if Canvas::is_hitting(finger.pos, self.piece_hitboxes[x][y]) {
@@ -433,7 +433,7 @@ impl Scene for ReplayScene {
                             self.play_replay_move(response);
                         }
                     }
-                    multitouch::MultitouchEvent::Release { finger } => {
+                    MultitouchEvent::Release { finger } => {
                         if !self.is_game_over {
                             for x in 0..8 {
                                 for y in 0..8 {

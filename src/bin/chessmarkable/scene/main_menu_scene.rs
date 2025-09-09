@@ -1,6 +1,6 @@
+use libremarkable::input::{InputEvent, MultitouchEvent};
 use super::Scene;
 use crate::canvas::*;
-use libremarkable::input::{multitouch::MultitouchEvent, InputEvent};
 
 pub struct MainMenuScene {
     drawn: bool,

@@ -4,9 +4,7 @@ pub use libremarkable::framebuffer::{
     common::DISPLAYWIDTH, core::Framebuffer, storage::rgbimage_from_u8_slice, FramebufferBase,
     FramebufferDraw, FramebufferIO, FramebufferRefresh,
 };
-use libremarkable::framebuffer::{
-    common::display_temp, common::dither_mode, common::waveform_mode, refresh::PartialRefreshMode,
-};
+use libremarkable::framebuffer::{common::display_temp, common::dither_mode, common::waveform_mode, PartialRefreshMode};
 use libremarkable::image;
 
 #[derive(Default)]

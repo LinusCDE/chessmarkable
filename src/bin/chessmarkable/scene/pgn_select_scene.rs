@@ -1,7 +1,7 @@
 use super::Scene;
 use crate::canvas::*;
 use crate::pgns::*;
-use libremarkable::input::{multitouch::MultitouchEvent, InputEvent};
+use libremarkable::input::{InputEvent, MultitouchEvent};
 use anyhow::Error;
 use chess_pgn_parser::{Game, read_games};
 use std::fs::File;
