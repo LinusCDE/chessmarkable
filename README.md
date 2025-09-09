@@ -46,10 +46,13 @@ After this, you should be able to browse all the games from the menu point "PGN 
 
 ### Compiling
 
-- Make sure to have rustup and a current toolchain (nightly might be needed)
-- Install the [oecore toolchain](https://remarkablewiki.com/devel/toolchain).
-  - If you're not using linux, you might want to adjust the path in `.cargo/config`
-- Compile it with `cargo build --release`. It should automatically cross-compile.
+In general building should work on most toolchains. You generally wanna target armv7-unknown-linux-gnueabihf for any remarkable.
+But as with all things in life, stuff never works great on every setup.
+
+That's why I recommend to nowadays build with the rust image from [toltec-dev/toolchain](https://github.com/toltec-dev/toolchain). It is the most modern and the closest to the actual reMarkable system as you're gonna get as of now.
+
+To make it easier to use, I found that you can use the rust image (`ghcr.io/toltec-dev/rust:v3.2`, [all versions](https://github.com/toltec-dev/toolchain/pkgs/container/rust)).
+This is done using the `Cross.toml` file. So you should just need to run `cross build --target=armv7-unknown-linux-gnueabihf --release` and it will use the above image (or possibly newer if this readme gets out-of-date).
 
 ## Todo
 
