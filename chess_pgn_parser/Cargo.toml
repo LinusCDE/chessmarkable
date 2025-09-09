@@ -16,6 +16,6 @@ version = "0.1.2"
 authors = ["Henri Wiechers <henri@wiechers.me>"]
 
 [dependencies]
-peggler="*"
+peggler = "*"
 enum_primitive = "*"
 num = "*"
