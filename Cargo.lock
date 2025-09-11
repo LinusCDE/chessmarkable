@@ -533,8 +533,9 @@ dependencies = [
 
 [[package]]
 name = "hlua"
-version = "0.4.2"
-source = "git+https://github.com/fenollp/hlua.git?rev=f327e79#f327e7909abe5b972a1e9704a371e3315e18ccbe"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3c03a4912d51870b3ad70456a312f0527debce842f6230096938564bcf13bea"
 dependencies = [
  "libc",
  "lua52-sys",
@@ -550,11 +551,22 @@ dependencies = [
  "byteorder-lite",
  "color_quant",
  "gif",
+ "image-webp",
  "moxcms",
  "num-traits 0.2.15",
  "png",
  "zune-core",
  "zune-jpeg",
+]
+
+[[package]]
+name = "image-webp"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "525e9ff3e1a4be2fbea1fdf0e98686a6d98b4d8f937e1bf7402245af1909e8c3"
+dependencies = [
+ "byteorder-lite",
+ "quick-error",
 ]
 
 [[package]]
@@ -651,7 +663,8 @@ checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
 [[package]]
 name = "libremarkable"
 version = "0.7.0"
-source = "git+https://github.com/canselcik/libremarkable.git?rev=2e6157648984bfa31639648bd759ee2c31701024#2e6157648984bfa31639648bd759ee2c31701024"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1da7c4a5765735faf196b9c3eb027cd9c2afb58abc772c8ef299dc56dc93edef"
 dependencies = [
  "aabb-quadtree",
  "cgmath",
@@ -665,7 +678,6 @@ dependencies = [
  "line_drawing",
  "log",
  "memmap2",
- "once_cell",
  "rusttype",
  "zstd",
 ]
@@ -688,7 +700,8 @@ checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 [[package]]
 name = "lua52-sys"
 version = "0.1.3"
-source = "git+https://github.com/fenollp/hlua.git?rev=f327e79#f327e7909abe5b972a1e9704a371e3315e18ccbe"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2905d3eea022e5a4d8723d95ba261cd366572c9a43e429dfc089088a8c0fe91"
 dependencies = [
  "cc",
  "libc",
@@ -875,12 +888,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "once_cell"
-version = "1.21.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
-
-[[package]]
 name = "once_cell_polyfill"
 version = "1.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -972,6 +979,12 @@ checksum = "f55f4fedc84ed39cb7a489322318976425e42a147e2be79d8f878e2884f94e84"
 dependencies = [
  "num-traits 0.2.15",
 ]
+
+[[package]]
+name = "quick-error"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a993555f31e5a609f617c12db6250dedcac1b0a85076912c436e6fc9b2c8e6a3"
 
 [[package]]
 name = "quote"
