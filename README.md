@@ -65,6 +65,10 @@ This app cant actually drive the rM 2 framebuffer. It needs [rm2fb](https://gith
 
 If you execute chessmarkable from ssh, be sure to have followed rm2fb steps to enable the support. When installed running `rm2fb-client ./chessmarkable` should work as well. Launching through a launcher (from toltec) should just work.
 
+### Environment variables
+
+The environment variable `LIBREMARKABLE_FB_DISFAVOR_INTERNAL_RM2FB` can be set to `1` to make this application not try to use its internal framebuffer client for [RM2FB](https://github.com/ddvk/remarkable2-framebuffer/).
+
 ## Credit
 
 - The [pleco](https://crates.io/crates/pleco) library is used as the engine, checking valid moves and providing the bots
